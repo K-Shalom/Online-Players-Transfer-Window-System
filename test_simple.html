@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        input, button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        button {
+            background: #1976d2;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Simple Login Test</h1>
+    <p>Test the login API directly</p>
+    
+    <form id="loginForm">
+        <input type="email" id="email" placeholder="Email" value="shalom@gmail.com" required>
+        <input type="password" id="password" placeholder="Password" value="12345" required>
+        <button type="submit">Login</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <hr>
+    <h3>Instructions:</h3>
+    <ol>
+        <li>Make sure XAMPP Apache and MySQL are running</li>
+        <li>Default credentials are pre-filled</li>
+        <li>Click "Login" button</li>
+        <li>Check the result below</li>
+    </ol>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            
+            resultDiv.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const response = await fetch('http://localhost/optw_system/api/login.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: email,  // Backend expects 'username' field
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Login Successful!</h3>
+                        <p><strong>User ID:</strong> ${data.user_id}</p>
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Email:</strong> ${data.email}</p>
+                        <p><strong>Role:</strong> ${data.role}</p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h3>❌ Login Failed</h3>
+                        <p>${data.message}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h3>❌ Connection Error</h3>
+                    <p>${error.message}</p>
+                    <p><strong>Possible issues:</strong></p>
+                    <ul>
+                        <li>XAMPP Apache is not running</li>
+                        <li>Backend URL is incorrect</li>
+                        <li>CORS is blocking the request</li>
+                    </ul>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
