@@ -27,6 +27,7 @@ import {
   SportsSoccer as SoccerIcon
 } from '@mui/icons-material';
 import { getPlayers, getClubs, addPlayer, updatePlayer, deletePlayer } from '../services/api';
+import ImageUpload from '../components/ImageUpload';
 
 const PlayersManagementDataGrid = () => {
   const [players, setPlayers] = useState([]);
@@ -43,7 +44,10 @@ const PlayersManagementDataGrid = () => {
     market_value: '',
     contract_end: '',
     health_status: 'fit',
+    photo_url: null,
   });
+  const [playerPhoto, setPlayerPhoto] = useState(null);
+  const [playerPhotoPreview, setPlayerPhotoPreview] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -84,7 +88,9 @@ const PlayersManagementDataGrid = () => {
         market_value: player.market_value.replace(/[$,]/g, ''),
         contract_end: player.contract_end,
         health_status: player.health_status,
+        photo_url: player.photo_url,
       });
+      setPlayerPhotoPreview(player.photo_url);
     } else {
       setEditMode(false);
       setCurrentPlayer({
@@ -97,7 +103,10 @@ const PlayersManagementDataGrid = () => {
         market_value: '',
         contract_end: '',
         health_status: 'fit',
+        photo_url: null,
       });
+      setPlayerPhoto(null);
+      setPlayerPhotoPreview(null);
     }
     setError('');
     setSuccess('');
@@ -331,6 +340,19 @@ const PlayersManagementDataGrid = () => {
           {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
           <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+              <ImageUpload
+                currentImage={playerPhotoPreview}
+                onImageChange={(file, preview) => {
+                  setPlayerPhoto(file);
+                  setPlayerPhotoPreview(preview);
+                }}
+                label="Player Photo"
+                shape="circle"
+                size={120}
+              />
+            </Grid>
+
             <Grid item xs={12}>
               <TextField
                 fullWidth

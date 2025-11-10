@@ -1,9 +1,10 @@
 import React, { useState, useContext } from 'react';
-import { Box, TextField, Button, Typography, Alert, MenuItem, IconButton, Tooltip, Paper } from '@mui/material';
+import { Box, TextField, Button, Typography, Alert, MenuItem, IconButton, Tooltip, Paper, CircularProgress } from '@mui/material';
 import { Brightness4 as DarkModeIcon, Brightness7 as LightModeIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { signupUser } from '../services/api';
 import { ThemeContext } from '../context/ThemeContext';
+import { showToast } from '../utils/toast';
 
 const Signup = () => {
   const [name, setName] = useState('');
@@ -12,6 +13,7 @@ const Signup = () => {
   const [role, setRole] = useState('club'); // default role
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { mode, toggleTheme } = useContext(ThemeContext);
 
@@ -19,10 +21,13 @@ const Signup = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLoading(true);
     
     // Validate inputs
     if (!name || !email || !password) {
       setError('Please fill in all fields');
+      showToast.error('Please fill in all fields');
+      setLoading(false);
       return;
     }
     
@@ -30,14 +35,24 @@ const Signup = () => {
       const res = await signupUser(name, email, password, role);
       if (res.data.success) {
         setSuccess(res.data.message);
-        setTimeout(() => navigate('/login'), 1500); // redirect to login
+        showToast.success(res.data.message);
+        // Show verification link in development
+        if (res.data.verification_link) {
+          console.log('Verification link:', res.data.verification_link);
+          showToast.info('Check console for verification link (dev mode)');
+        }
+        setTimeout(() => navigate('/login'), 3000); // redirect to login
       } else {
         setError(res.data.message);
+        showToast.error(res.data.message);
       }
     } catch (err) {
       console.error('Signup error', err);
       const errorMsg = err.response?.data?.message || 'Server error';
       setError(errorMsg);
+      showToast.error(errorMsg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,7 +107,15 @@ const Signup = () => {
           <MenuItem value="admin">Admin</MenuItem>
           <MenuItem value="club">Club</MenuItem>
         </TextField>
-        <Button variant="contained" type="submit" fullWidth>Signup</Button>
+        <Button 
+          variant="contained" 
+          type="submit" 
+          fullWidth
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+        >
+          {loading ? 'Signing up...' : 'Signup'}
+        </Button>
       </form>
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="body2" color="textSecondary">

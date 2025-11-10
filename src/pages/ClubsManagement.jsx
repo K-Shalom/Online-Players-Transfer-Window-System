@@ -31,6 +31,7 @@ import {
   Pending,
 } from '@mui/icons-material';
 import { getClubs, addClub, updateClub, deleteClub, approveClub, rejectClub } from '../services/api';
+import ImageUpload from '../components/ImageUpload';
 
 const ClubsManagement = () => {
   const [clubs, setClubs] = useState([]);
@@ -45,7 +46,10 @@ const ClubsManagement = () => {
     contact: '',
     license_no: '',
     status: 'pending',
+    logo_url: null,
   });
+  const [clubLogo, setClubLogo] = useState(null);
+  const [clubLogoPreview, setClubLogoPreview] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -85,7 +89,9 @@ const ClubsManagement = () => {
         contact: club.contact,
         license_no: club.license_no,
         status: club.status,
+        logo_url: club.logo_url,
       });
+      setClubLogoPreview(club.logo_url);
     } else {
       setEditMode(false);
       setCurrentClub({
@@ -96,7 +102,10 @@ const ClubsManagement = () => {
         contact: '',
         license_no: '',
         status: 'pending',
+        logo_url: null,
       });
+      setClubLogo(null);
+      setClubLogoPreview(null);
     }
     setOpenDialog(true);
     setError('');
@@ -312,6 +321,19 @@ const ClubsManagement = () => {
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
           
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <ImageUpload
+              currentImage={clubLogoPreview}
+              onImageChange={(file, preview) => {
+                setClubLogo(file);
+                setClubLogoPreview(preview);
+              }}
+              label="Club Logo"
+              shape="square"
+              size={150}
+            />
+          </Box>
+
           <TextField
             fullWidth
             label="Club Name"

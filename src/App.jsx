@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { ThemeContextProvider } from './context/ThemeContext';
+import { SessionProvider } from './context/SessionContext';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import AdminDashboardContent from './pages/AdminDashboardContent';
@@ -11,6 +14,7 @@ import ClubOffers from './pages/ClubOffers';
 import ClubWishlist from './pages/ClubWishlist';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import VerifyEmail from './pages/VerifyEmail';
 import PlayersManagement from './pages/PlayersManagement';
 import PlayersManagementDataGrid from './pages/PlayersManagementDataGrid';
 import ClubsManagement from './pages/ClubsManagement';
@@ -37,9 +41,23 @@ const App = () => {
   return (
     <ThemeContextProvider>
       <Router>
-      <Routes>
+        <SessionProvider>
+          <ToastContainer
+            position="top-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="colored"
+          />
+          <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route 
           path="/" 
           element={
@@ -152,8 +170,9 @@ const App = () => {
             </ProtectedRoute>
           } 
         />
-      </Routes>
-    </Router>
+          </Routes>
+        </SessionProvider>
+      </Router>
     </ThemeContextProvider>
   );
 };

@@ -1,15 +1,18 @@
 import React, { useState, useContext } from 'react';
-import { Box, TextField, Button, Typography, Alert, IconButton, Tooltip, Paper } from '@mui/material';
+import { Box, TextField, Button, Typography, Alert, IconButton, Tooltip, Paper, CircularProgress } from '@mui/material';
 import { Brightness4 as DarkModeIcon, Brightness7 as LightModeIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/api';
+import { loginUser, sendVerificationEmail } from '../services/api';
 import { ThemeContext } from '../context/ThemeContext';
+import { showToast } from '../utils/toast';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [resendingVerification, setResendingVerification] = useState(false);
   const navigate = useNavigate();
   const { mode, toggleTheme } = useContext(ThemeContext);
 
@@ -38,6 +41,8 @@ const Login = () => {
         };
         localStorage.setItem('user', JSON.stringify(userData));
         
+        showToast.success('Login successful!');
+        
         // Redirect based on role with full page reload
         if (res.data.role === 'admin') {
           window.location.href = '/'; // admin dashboard
@@ -45,22 +50,57 @@ const Login = () => {
           window.location.href = '/dashboard'; // club user dashboard
         }
       } else {
+        if (res.data.email_not_verified) {
+          setEmailNotVerified(true);
+        }
         setError(res.data.message || 'Login failed');
+        showToast.error(res.data.message || 'Login failed');
       }
     } catch (err) {
       console.error('Login error', err);
+      let errorMessage = '';
       if (err.response) {
         const serverMessage = err.response.data && err.response.data.message 
           ? err.response.data.message 
           : JSON.stringify(err.response.data);
-        setError(serverMessage || `Server error (${err.response.status})`);
+        errorMessage = serverMessage || `Server error (${err.response.status})`;
+        if (err.response.data?.email_not_verified) {
+          setEmailNotVerified(true);
+        }
       } else if (err.request) {
-        setError('Cannot connect to server. Please check: 1) XAMPP is running 2) Backend URL is correct');
+        errorMessage = 'Cannot connect to server. Please check: 1) XAMPP is running 2) Backend URL is correct';
       } else {
-        setError(err.message || 'Server error');
+        errorMessage = err.message || 'Server error';
       }
+      setError(errorMessage);
+      showToast.error(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!username) {
+      showToast.error('Please enter your email address');
+      return;
+    }
+    
+    setResendingVerification(true);
+    try {
+      const res = await sendVerificationEmail(username);
+      if (res.data.success) {
+        showToast.success('Verification email sent! Check your inbox.');
+        // In development, show the link
+        if (res.data.verification_link) {
+          console.log('Verification link:', res.data.verification_link);
+        }
+      } else {
+        showToast.error(res.data.message);
+      }
+    } catch (err) {
+      showToast.error('Failed to send verification email');
+    } finally {
+      setResendingVerification(false);
     }
   };
 
@@ -98,9 +138,22 @@ const Login = () => {
           type="submit" 
           fullWidth
           disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
         >
           {loading ? 'Logging in...' : 'Login'}
         </Button>
+        {emailNotVerified && (
+          <Button
+            variant="outlined"
+            fullWidth
+            sx={{ mt: 1 }}
+            onClick={handleResendVerification}
+            disabled={resendingVerification}
+            startIcon={resendingVerification ? <CircularProgress size={20} color="inherit" /> : null}
+          >
+            {resendingVerification ? 'Sending...' : 'Resend Verification Email'}
+          </Button>
+        )}
       </form>
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="body2" color="textSecondary">

@@ -183,3 +183,17 @@ export const removeFromWishlist = (wishlistId) => {
 export const removeFromWishlistByIds = (clubId, playerId) => {
   return axios.delete(API_URL + 'wishlists.php', { data: { club_id: clubId, player_id: playerId } });
 };
+
+// Email Verification APIs
+export const sendVerificationEmail = (email) => {
+  return axios.post(API_URL + 'send_verification.php', { email });
+};
+
+export const verifyEmail = (token) => {
+  return axios.get(API_URL + 'verify_email.php?token=' + token);
+};
+
+// Bulk Delete API
+export const bulkDelete = (table, ids, idColumn) => {
+  return axios.post(API_URL + 'bulk_delete.php', { table, ids, id_column: idColumn });
+};
