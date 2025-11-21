@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { showToast } from '../utils/toast';
 import {
   IconButton,
   Badge,
@@ -48,9 +49,12 @@ const NotificationBell = () => {
         setNotifications(res.data.data);
         const unread = res.data.data.filter(n => !n.is_read).length;
         setUnreadCount(unread);
+      } else {
+        showToast.error(res.data.message || 'Failed to fetch notifications');
       }
     } catch (err) {
       console.error('Error fetching notifications:', err);
+      showToast.error('Error fetching notifications');
     }
   };
 
@@ -67,8 +71,10 @@ const NotificationBell = () => {
       try {
         await markNotificationRead(notif.notif_id);
         fetchNotifications();
+        showToast.success('Notification marked as read');
       } catch (err) {
         console.error('Error marking notification as read:', err);
+        showToast.error('Error marking notification as read');
       }
     }
   };
@@ -77,8 +83,10 @@ const NotificationBell = () => {
     try {
       await markAllNotificationsRead(user.user_id);
       fetchNotifications();
+      showToast.success('All notifications marked as read');
     } catch (err) {
       console.error('Error marking all as read:', err);
+      showToast.error('Error marking all as read');
     }
   };
 
@@ -86,8 +94,10 @@ const NotificationBell = () => {
     try {
       await deleteAllReadNotifications(user.user_id);
       fetchNotifications();
+      showToast.success('Read notifications cleared');
     } catch (err) {
       console.error('Error clearing read notifications:', err);
+      showToast.error('Error clearing read notifications');
     }
   };
 

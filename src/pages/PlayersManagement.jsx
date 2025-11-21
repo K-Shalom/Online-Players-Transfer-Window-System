@@ -19,12 +19,20 @@ import {
   IconButton,
   Chip,
   Alert,
+  CircularProgress,
+  Avatar,
+  Tooltip,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  SportsSoccer as SoccerIcon,
+  Close as CloseIcon,
+  SportsSoccer as SportsSoccerIcon
 } from '@mui/icons-material';
 import { getPlayers, getClubs, addPlayer, updatePlayer, deletePlayer } from '../services/api';
 
@@ -200,78 +208,261 @@ const PlayersManagement = () => {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+    <Box sx={{ p: 3 }}>
+      {/* Header Section */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 4,
+        flexWrap: 'wrap',
+        gap: 2
+      }}>
+        <Typography variant="h4" sx={{ 
+          fontWeight: 600,
+          color: 'primary.main',
+          fontSize: { xs: '1.5rem', sm: '2rem' }
+        }}>
           Players Management
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
+          sx={{
+            textTransform: 'none',
+            px: 3,
+            py: 1,
+            borderRadius: 2,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            '&:hover': {
+              boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
+            }
+          }}
         >
           Add Player
         </Button>
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
+      {/* Alerts */}
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+      
+      {success && (
+        <Alert 
+          severity="success" 
+          sx={{ 
+            mb: 3,
+            borderRadius: 2,
+            boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+          }}
+        >
+          {success}
+        </Alert>
+      )}
 
-      <Paper>
-        <TableContainer>
-          <Table>
+      {/* Players Table */}
+      <Paper 
+        elevation={0}
+        sx={{
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+          '& .MuiTable-root': {
+            minWidth: 1000
+          }
+        }}
+      >
+        <TableContainer sx={{ maxHeight: 'calc(100vh - 250px)' }}>
+          <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell><strong>Name</strong></TableCell>
-                <TableCell><strong>Age</strong></TableCell>
-                <TableCell><strong>Nationality</strong></TableCell>
-                <TableCell><strong>Position</strong></TableCell>
-                <TableCell><strong>Club</strong></TableCell>
-                <TableCell><strong>Market Value</strong></TableCell>
-                <TableCell><strong>Health Status</strong></TableCell>
-                <TableCell><strong>Actions</strong></TableCell>
+                {[
+                  { id: 'name', label: 'Player Name' },
+                  { id: 'age', label: 'Age', align: 'center' },
+                  { id: 'nationality', label: 'Nationality' },
+                  { id: 'position', label: 'Position' },
+                  { id: 'club', label: 'Club' },
+                  { id: 'market_value', label: 'Market Value', align: 'right' },
+                  { id: 'health_status', label: 'Status', align: 'center' },
+                  { id: 'actions', label: 'Actions', align: 'center' }
+                ].map((column) => (
+                  <TableCell
+                    key={column.id}
+                    align={column.align || 'left'}
+                    sx={{
+                      fontWeight: 600,
+                      backgroundColor: 'background.paper',
+                      color: 'text.primary',
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      py: 1.5,
+                      px: 2
+                    }}
+                  >
+                    {column.label}
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">Loading...</TableCell>
+                  <TableCell colSpan={8} align="center" sx={{ py: 3 }}>
+                    <CircularProgress size={24} />
+                  </TableCell>
                 </TableRow>
               ) : players.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">No players found</TableCell>
+                  <TableCell colSpan={8} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                      <SportsSoccerIcon sx={{ fontSize: 40, opacity: 0.5 }} />
+                      <Typography>No players found</Typography>
+                    </Box>
+                  </TableCell>
                 </TableRow>
               ) : (
                 players.map((player) => (
-                  <TableRow key={player.id} hover>
-                    <TableCell>{player.name}</TableCell>
-                    <TableCell>{player.age}</TableCell>
-                    <TableCell>{player.nationality}</TableCell>
-                    <TableCell>{player.position}</TableCell>
-                    <TableCell>{player.club}</TableCell>
-                    <TableCell>{player.market_value}</TableCell>
-                    <TableCell>
+                  <TableRow 
+                    key={player.id} 
+                    hover 
+                    sx={{ 
+                      '&:last-child td': { borderBottom: 0 },
+                      '&:hover': { backgroundColor: 'action.hover' }
+                    }}
+                  >
+                    <TableCell sx={{ fontWeight: 500, py: 1.5, px: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar 
+                          src={player.photo} 
+                          alt={player.name}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          {player.name?.charAt(0)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight={500}>
+                            {player.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            #{player.jersey_number || '00'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center" sx={{ py: 1.5, px: 2 }}>
+                      {player.age}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5, px: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {player.nationality_flag && (
+                          <img 
+                            src={player.nationality_flag} 
+                            alt={player.nationality}
+                            style={{ width: 24, height: 16, borderRadius: 2 }}
+                          />
+                        )}
+                        <span>{player.nationality}</span>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5, px: 2 }}>
+                      <Chip
+                        label={player.position}
+                        size="small"
+                        color={
+                          player.position === 'Goalkeeper' ? 'primary' : 
+                          player.position === 'Defender' ? 'success' :
+                          player.position === 'Midfielder' ? 'warning' : 'error'
+                        }
+                        sx={{ 
+                          fontWeight: 500,
+                          minWidth: 80,
+                          '& .MuiChip-label': { px: 1.5 }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ py: 1.5, px: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {player.club_logo && (
+                          <Avatar 
+                            src={player.club_logo} 
+                            alt={player.club}
+                            sx={{ width: 24, height: 24 }}
+                          />
+                        )}
+                        <span>{player.club || 'Free Agent'}</span>
+                      </Box>
+                    </TableCell>
+                    <TableCell align="right" sx={{ py: 1.5, px: 2, fontWeight: 500 }}>
+                      {player.market_value ? `$${parseInt(player.market_value).toLocaleString()}` : '-'}
+                    </TableCell>
+                    <TableCell align="center" sx={{ py: 1.5, px: 2 }}>
                       <Chip
                         label={player.health_status}
                         size="small"
                         color={getHealthStatusColor(player.health_status)}
+                        sx={{ 
+                          textTransform: 'capitalize',
+                          minWidth: 80,
+                          '&.MuiChip-colorSuccess': { 
+                            bgcolor: 'success.light', 
+                            color: 'success.dark' 
+                          },
+                          '&.MuiChip-colorError': { 
+                            bgcolor: 'error.light', 
+                            color: 'error.dark' 
+                          },
+                          '&.MuiChip-colorWarning': { 
+                            bgcolor: 'warning.light', 
+                            color: 'warning.dark' 
+                          }
+                        }}
                       />
                     </TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => handleOpenDialog(player)}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(player.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                    <TableCell align="center" sx={{ py: 1.5, px: 2 }}>
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleOpenDialog(player)}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: 'primary.light',
+                                color: 'primary.contrastText'
+                              }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDelete(player.id)}
+                            sx={{ 
+                              '&:hover': { 
+                                backgroundColor: 'error.light',
+                                color: 'error.contrastText'
+                              }
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
@@ -282,106 +473,169 @@ const PlayersManagement = () => {
       </Paper>
 
       {/* Add/Edit Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editMode ? 'Edit Player' : 'Add New Player'}</DialogTitle>
-        <DialogContent>
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-          
-          <TextField
-            fullWidth
-            label="Name"
-            name="name"
-            value={currentPlayer.name}
-            onChange={handleInputChange}
-            margin="normal"
-            required
-          />
-          <TextField
-            fullWidth
-            label="Age"
-            name="age"
-            type="number"
-            value={currentPlayer.age}
-            onChange={handleInputChange}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Nationality"
-            name="nationality"
-            value={currentPlayer.nationality}
-            onChange={handleInputChange}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            select
-            label="Position"
-            name="position"
-            value={currentPlayer.position}
-            onChange={handleInputChange}
-            margin="normal"
-            required
+      <Dialog 
+        open={openDialog} 
+        onClose={handleCloseDialog} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            p: 1
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          bgcolor: 'primary.main', 
+          color: 'primary.contrastText',
+          py: 2,
+          px: 3,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <Typography variant="h6" component="div">
+            {editMode ? 'Edit Player' : 'Add New Player'}
+          </Typography>
+          <IconButton 
+            edge="end" 
+            color="inherit" 
+            onClick={handleCloseDialog}
+            size="small"
           >
-            <MenuItem value="Goalkeeper">Goalkeeper</MenuItem>
-            <MenuItem value="Defender">Defender</MenuItem>
-            <MenuItem value="Midfielder">Midfielder</MenuItem>
-            <MenuItem value="Forward">Forward</MenuItem>
-          </TextField>
-          <TextField
-            fullWidth
-            select
-            label="Club"
-            name="club_id"
-            value={currentPlayer.club_id}
-            onChange={handleInputChange}
-            margin="normal"
-          >
-            <MenuItem value="">Free Agent</MenuItem>
-            {clubs.map((club) => (
-              <MenuItem key={club.id} value={club.id}>
-                {club.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField
-            fullWidth
-            label="Market Value"
-            name="market_value"
-            type="number"
-            value={currentPlayer.market_value}
-            onChange={handleInputChange}
-            margin="normal"
-          />
-          <TextField
-            fullWidth
-            label="Contract End Date"
-            name="contract_end"
-            type="date"
-            value={currentPlayer.contract_end}
-            onChange={handleInputChange}
-            margin="normal"
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            fullWidth
-            select
-            label="Health Status"
-            name="health_status"
-            value={currentPlayer.health_status}
-            onChange={handleInputChange}
-            margin="normal"
-          >
-            <MenuItem value="fit">Fit</MenuItem>
-            <MenuItem value="injured">Injured</MenuItem>
-            <MenuItem value="recovering">Recovering</MenuItem>
-          </TextField>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          <Box sx={{ '& > :not(style)': { my: 1.5 } }}>
+            <TextField
+              fullWidth
+              label="Full Name"
+              name="name"
+              value={currentPlayer.name}
+              onChange={handleInputChange}
+              margin="dense"
+              required
+              variant="outlined"
+              size="small"
+            />
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                fullWidth
+                label="Age"
+                name="age"
+                type="number"
+                value={currentPlayer.age}
+                onChange={handleInputChange}
+                margin="dense"
+                variant="outlined"
+                size="small"
+              />
+              <TextField
+                fullWidth
+                label="Nationality"
+                name="nationality"
+                value={currentPlayer.nationality}
+                onChange={handleInputChange}
+                margin="dense"
+                variant="outlined"
+                size="small"
+              />
+            </Box>
+            <FormControl fullWidth margin="dense" size="small">
+              <InputLabel>Position</InputLabel>
+              <Select
+                name="position"
+                value={currentPlayer.position}
+                onChange={handleInputChange}
+                label="Position"
+                variant="outlined"
+              >
+                <MenuItem value="Goalkeeper">Goalkeeper</MenuItem>
+                <MenuItem value="Defender">Defender</MenuItem>
+                <MenuItem value="Midfielder">Midfielder</MenuItem>
+                <MenuItem value="Forward">Forward</MenuItem>
+              </Select>
+            </FormControl>
+            <FormControl fullWidth margin="dense" size="small">
+              <InputLabel>Club</InputLabel>
+              <Select
+                name="club_id"
+                value={currentPlayer.club_id}
+                onChange={handleInputChange}
+                label="Club"
+                variant="outlined"
+              >
+                <MenuItem value="">Free Agent</MenuItem>
+                {clubs.map((club) => (
+                  <MenuItem key={club.id} value={club.id}>
+                    {club.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              label="Market Value ($)"
+              name="market_value"
+              type="number"
+              value={currentPlayer.market_value}
+              onChange={handleInputChange}
+              margin="dense"
+              variant="outlined"
+              size="small"
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+            />
+            <TextField
+              fullWidth
+              label="Contract End Date"
+              name="contract_end"
+              type="date"
+              value={currentPlayer.contract_end}
+              onChange={handleInputChange}
+              margin="dense"
+              variant="outlined"
+              size="small"
+              InputLabelProps={{ shrink: true }}
+            />
+            <FormControl fullWidth margin="dense" size="small">
+              <InputLabel>Health Status</InputLabel>
+              <Select
+                name="health_status"
+                value={currentPlayer.health_status}
+                onChange={handleInputChange}
+                label="Health Status"
+                variant="outlined"
+              >
+                <MenuItem value="fit">Fit</MenuItem>
+                <MenuItem value="injured">Injured</MenuItem>
+                <MenuItem value="recovering">Recovering</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {editMode ? 'Update' : 'Add'}
+        <DialogActions sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
+          <Button 
+            onClick={handleCloseDialog}
+            color="inherit"
+            sx={{ textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            variant="contained"
+            sx={{ 
+              textTransform: 'none',
+              px: 3,
+              '&:hover': {
+                boxShadow: 2
+              }
+            }}
+          >
+            {editMode ? 'Update' : 'Add'} Player
           </Button>
         </DialogActions>
       </Dialog>

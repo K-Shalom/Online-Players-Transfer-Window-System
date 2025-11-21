@@ -40,6 +40,7 @@ import {
   addToWishlist,
   removeFromWishlist
 } from '../services/api';
+import { showToast } from '../utils/toast';
 
 const WishlistManagement = () => {
   const [wishlists, setWishlists] = useState([]);
@@ -105,6 +106,7 @@ const WishlistManagement = () => {
 
     if (!selectedClub || !selectedPlayer) {
       setError('Please select both club and player');
+      showToast.error('Please select both club and player');
       setLoading(false);
       return;
     }
@@ -113,15 +115,18 @@ const WishlistManagement = () => {
       const res = await addToWishlist(parseInt(selectedClub), parseInt(selectedPlayer));
       if (res.data.success) {
         setSuccess('Player added to wishlist successfully');
+        showToast.success('Player added to wishlist successfully');
         fetchData();
         setTimeout(() => {
           handleCloseDialog();
         }, 1500);
       } else {
         setError(res.data.message || 'Failed to add to wishlist');
+        showToast.error(res.data.message || 'Failed to add to wishlist');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Error adding to wishlist');
+      showToast.error(err.response?.data?.message || 'Error adding to wishlist');
     } finally {
       setLoading(false);
     }
@@ -134,12 +139,15 @@ const WishlistManagement = () => {
       const res = await removeFromWishlist(wishlistId);
       if (res.data.success) {
         setSuccess('Removed from wishlist');
+        showToast.success('Removed from wishlist');
         fetchData();
       } else {
         setError(res.data.message || 'Failed to remove from wishlist');
+        showToast.error(res.data.message || 'Failed to remove from wishlist');
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Error removing from wishlist');
+      showToast.error(err.response?.data?.message || 'Error removing from wishlist');
     }
   };
 

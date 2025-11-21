@@ -34,8 +34,10 @@ const Signup = () => {
     try {
       const res = await signupUser(name, email, password, role);
       if (res.data.success) {
-        setSuccess(res.data.message);
-        showToast.success(res.data.message);
+        setSuccess('Registration successful!');
+        showToast.success('Registration successful!', {
+          style: { background: '#43a047', color: '#fff' }
+        });
         // Show verification link in development
         if (res.data.verification_link) {
           console.log('Verification link:', res.data.verification_link);
@@ -55,6 +57,7 @@ const Signup = () => {
       setLoading(false);
     }
   };
+    // ...existing code...
 
   return (
     <Box sx={{ maxWidth: 400, mx: 'auto', mt: 10 }}>

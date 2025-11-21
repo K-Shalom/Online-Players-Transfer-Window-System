@@ -43,6 +43,8 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { getDashboardStats, getRecentTransfers, getPendingClubs, approveClub, rejectClub } from '../services/api';
+import { showToast } from '../utils/toast';
+import DashboardChart from '../components/DashboardChart';
 
 const AdminDashboard = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -97,11 +99,14 @@ const AdminDashboard = () => {
     try {
       const res = await approveClub(clubId);
       if (res.data.success) {
-        // Refresh pending clubs list
+        showToast.success('Club approved successfully');
         fetchDashboardData();
+      } else {
+        showToast.error(res.data.message || 'Failed to approve club');
       }
     } catch (error) {
       console.error('Error approving club:', error);
+      showToast.error('Error approving club');
     }
   };
 
@@ -109,17 +114,25 @@ const AdminDashboard = () => {
     try {
       const res = await rejectClub(clubId);
       if (res.data.success) {
-        // Refresh pending clubs list
+        showToast.success('Club rejected successfully');
         fetchDashboardData();
+      } else {
+        showToast.error(res.data.message || 'Failed to reject club');
       }
     } catch (error) {
       console.error('Error rejecting club:', error);
+      showToast.error('Error rejecting club');
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
-    navigate('/login');
+    showToast.success('Logged out successfully!', {
+      style: { background: '#43a047', color: '#fff' }
+    });
+    setTimeout(() => {
+      navigate('/login');
+    }, 1500);
   };
 
   const toggleDrawer = () => {
@@ -266,52 +279,15 @@ const AdminDashboard = () => {
         {/* Welcome Section */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-            Welcome back, {user.name || 'Admin'}! 👋
+            Welcome back, {user.name || 'Admin'}! 
           </Typography>
           <Typography variant="body1" color="textSecondary">
             Here's what's happening with your transfer system today.
           </Typography>
         </Box>
 
-        {/* Stats Cards */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Total Clubs"
-              value={stats.totalClubs}
-              icon={<PeopleIcon />}
-              color="#1976d2"
-              trend={12}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Total Players"
-              value={stats.totalPlayers}
-              icon={<SoccerIcon />}
-              color="#2e7d32"
-              trend={8}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Active Transfers"
-              value={stats.activeTransfers}
-              icon={<TransferIcon />}
-              color="#ed6c02"
-              trend={-3}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Pending Approvals"
-              value={stats.pendingApprovals}
-              icon={<Pending />}
-              color="#d32f2f"
-              trend={5}
-            />
-          </Grid>
-        </Grid>
+        {/* Dynamic Chart for Dashboard Stats */}
+        <DashboardChart stats={stats} />
 
         {/* Recent Transfers and Pending Clubs */}
         <Grid container spacing={3}>

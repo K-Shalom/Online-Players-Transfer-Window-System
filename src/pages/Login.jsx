@@ -10,6 +10,7 @@ const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [resendingVerification, setResendingVerification] = useState(false);
@@ -41,14 +42,18 @@ const Login = () => {
         };
         localStorage.setItem('user', JSON.stringify(userData));
         
-        showToast.success('Login successful!');
-        
-        // Redirect based on role with full page reload
-        if (res.data.role === 'admin') {
-          window.location.href = '/'; // admin dashboard
-        } else {
-          window.location.href = '/dashboard'; // club user dashboard
-        }
+          setSuccess('Login successful!');
+          showToast.success('Login successful!', {
+            style: { background: '#43a047', color: '#fff' }
+          });
+          // Delay redirect so toast can be seen
+          setTimeout(() => {
+            if (res.data.role === 'admin') {
+              navigate('/admin'); // admin dashboard
+            } else {
+              navigate('/dashboard'); // club user dashboard
+            }
+          }, 1500);
       } else {
         if (res.data.email_not_verified) {
           setEmailNotVerified(true);
@@ -84,7 +89,6 @@ const Login = () => {
       showToast.error('Please enter your email address');
       return;
     }
-    
     setResendingVerification(true);
     try {
       const res = await sendVerificationEmail(username);

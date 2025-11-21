@@ -1,5 +1,5 @@
 import axios from 'axios';
-const API_URL = 'http://localhost/optw_system/api/';
+const API_URL = 'http://localhost/Online-Players-Transfer-Window-System/api/';
 
 export const loginUser = (username, password) => {
   return axios.post(API_URL + 'login.php', { username, password });

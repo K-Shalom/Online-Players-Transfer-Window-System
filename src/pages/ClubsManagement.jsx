@@ -31,6 +31,7 @@ import {
   Pending,
 } from '@mui/icons-material';
 import { getClubs, addClub, updateClub, deleteClub, approveClub, rejectClub } from '../services/api';
+import { showToast } from '../utils/toast';
 import ImageUpload from '../components/ImageUpload';
 
 const ClubsManagement = () => {
@@ -136,7 +137,10 @@ const ClubsManagement = () => {
       }
 
       if (res.data.success) {
-        setSuccess(res.data.message);
+        setSuccess('Club added successfully!');
+        showToast.success('Club added successfully!', {
+          style: { background: '#43a047', color: '#fff' }
+        });
         fetchClubs();
         setTimeout(() => {
           handleCloseDialog();
