@@ -286,6 +286,42 @@ const AdminDashboard = () => {
           </Typography>
         </Box>
 
+        {/* KPI Stats */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Total Clubs"
+              value={stats.totalClubs ?? 0}
+              icon={<DashboardIcon />}
+              color="#1976d2"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Total Players"
+              value={stats.totalPlayers ?? 0}
+              icon={<PeopleIcon />}
+              color="#2e7d32"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Active Transfers"
+              value={stats.activeTransfers ?? 0}
+              icon={<TransferIcon />}
+              color="#ed6c02"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatCard
+              title="Pending Approvals"
+              value={stats.pendingApprovals ?? 0}
+              icon={<ReportIcon />}
+              color="#d32f2f"
+            />
+          </Grid>
+        </Grid>
+
         {/* Dynamic Chart for Dashboard Stats */}
         <DashboardChart stats={stats} />
 

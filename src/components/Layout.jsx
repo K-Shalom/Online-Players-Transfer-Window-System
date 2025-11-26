@@ -216,8 +216,7 @@ const Layout = ({ children }) => {
           flexGrow: 1,
           px: 1,
           py: 3,
-          ml: drawerOpen ? `${drawerWidth}px` : 0,
-          transition: "margin 0.3s",
+          transition: "padding 0.3s",
           mt: "64px",
         }}
       >

@@ -38,38 +38,19 @@ import {
 } from '@mui/icons-material';
 import { getClubs, getPlayers, getTransfers, getOffersByClub, getWishlists } from '../services/api';
 import { useTheme } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
-
-// Sample performance data - replace with actual data from your API
-const performanceData = [
-  { name: 'Jan', value: 65 },
-  { name: 'Feb', value: 59 },
-  { name: 'Mar', value: 80 },
-  { name: 'Apr', value: 81 },
-  { name: 'May', value: 76 },
-  { name: 'Jun', value: 85 },
-];
-
-const squadDistribution = [
-  { name: 'Goalkeepers', value: 3 },
-  { name: 'Defenders', value: 8 },
-  { name: 'Midfielders', value: 8 },
-  { name: 'Forwards', value: 5 },
-];
 
 const ClubDashboard = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalPlayers: 0,
     activeTransfers: 0,
     pendingOffers: 0,
     wishlistCount: 0,
     totalValue: 0,
-    avgPlayerValue: 0,
-    teamRating: 78.5,
-    form: 'WWDWL',
-    nextMatch: 'FC Barcelona',
-    daysToNextMatch: 3
+    avgPlayerValue: 0
   });
   
   const [clubInfo, setClubInfo] = useState({
@@ -83,6 +64,8 @@ const ClubDashboard = () => {
   
   const [recentPlayers, setRecentPlayers] = useState([]);
   const [recentTransfers, setRecentTransfers] = useState([]);
+  const [performanceTrend, setPerformanceTrend] = useState([]);
+  const [squadDistributionData, setSquadDistributionData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -125,6 +108,31 @@ const ClubDashboard = () => {
               totalValue: totalValue,
               avgPlayerValue: avgValue
             }));
+
+            const distributionMap = {
+              Goalkeepers: 0,
+              Defenders: 0,
+              Midfielders: 0,
+              Forwards: 0,
+            };
+
+            clubPlayers.forEach((player) => {
+              const position = (player.position || '').toLowerCase();
+              if (position.includes('goal')) distributionMap.Goalkeepers += 1;
+              else if (position.includes('def')) distributionMap.Defenders += 1;
+              else if (position.includes('mid')) distributionMap.Midfielders += 1;
+              else if (position.includes('forward') || position.includes('striker') || position.includes('wing')) {
+                distributionMap.Forwards += 1;
+              } else {
+                distributionMap.Midfielders += 1;
+              }
+            });
+
+            const distributionData = Object.entries(distributionMap)
+              .map(([name, value]) => ({ name, value }))
+              .filter(item => item.value > 0);
+
+            setSquadDistributionData(distributionData);
           }
 
           // Fetch transfers
@@ -141,6 +149,35 @@ const ClubDashboard = () => {
                 ...prev,
                 activeTransfers: activeTransfers.length
               }));
+
+              const trendAccumulator = {};
+              clubTransfers.forEach((transfer) => {
+                const rawDate = transfer.created_at || transfer.date;
+                const date = rawDate ? new Date(rawDate) : null;
+                if (!date || Number.isNaN(date.getTime())) return;
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                if (!trendAccumulator[key]) {
+                  trendAccumulator[key] = {
+                    name: date.toLocaleString('default', { month: 'short' }),
+                    transfers: 0,
+                    amount: 0,
+                    sortKey: key,
+                  };
+                }
+                trendAccumulator[key].transfers += 1;
+                trendAccumulator[key].amount += parseFloat(transfer.amount_raw || transfer.amount || 0);
+              });
+
+              const trendData = Object.values(trendAccumulator)
+                .sort((a, b) => (a.sortKey > b.sortKey ? 1 : -1))
+                .slice(-6)
+                .map(item => ({
+                  name: item.name,
+                  transfers: item.transfers,
+                  amount: Number(item.amount.toFixed(2)),
+                }));
+
+              setPerformanceTrend(trendData);
             }
           } catch (e) {
             console.warn('Error fetching transfers:', e);
@@ -234,6 +271,30 @@ const ClubDashboard = () => {
             <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
           </Grid>
         </Grid>
+      </Box>
+    );
+  }
+
+  if (!loading && !clubInfo?.id) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No club profile found for your account. Create your club to access the dashboard.
+        </Alert>
+        <Button variant="contained" color="primary" onClick={() => navigate('/club/setup')}>
+          Create Club Profile
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!loading && clubInfo?.status === 'pending') {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Your club profile is awaiting admin approval. You will see full data once approved.
+        </Alert>
+        <Button variant="outlined" onClick={() => navigate('/club/setup')}>View/Update Submitted Details</Button>
       </Box>
     );
   }
@@ -942,50 +1003,58 @@ const ClubDashboard = () => {
                 <Box sx={{ p: 2.5, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>Team Performance</Typography>
                 </Box>
-                <Box sx={{ p: 2, height: 240 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                      <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false}
-                        tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                      />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false}
-                        tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                        domain={[0, 100]}
-                      />
-                      <RechartsTooltip 
-                        contentStyle={{
-                          backgroundColor: theme.palette.background.paper,
-                          border: `1px solid ${theme.palette.divider}`,
-                          borderRadius: theme.shape.borderRadius,
-                          boxShadow: theme.shadows[2]
-                        }}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke={theme.palette.primary.main} 
-                        strokeWidth={2}
-                        dot={{
-                          fill: theme.palette.primary.main,
-                          stroke: theme.palette.background.paper,
-                          strokeWidth: 2,
-                          r: 4
-                        }}
-                        activeDot={{
-                          r: 6,
-                          stroke: theme.palette.primary.main,
-                          strokeWidth: 2,
-                          fill: theme.palette.background.paper
-                        }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <Box sx={{ p: 2, minHeight: 240 }}>
+                  {performanceTrend.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Typography color="text.secondary">No transfer activity yet</Typography>
+                    </Box>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <LineChart data={performanceTrend}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
+                          allowDecimals={false}
+                          domain={[0, (dataMax) => Math.max(dataMax, 1)]}
+                        />
+                        <RechartsTooltip 
+                          contentStyle={{
+                            backgroundColor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: theme.shape.borderRadius,
+                            boxShadow: theme.shadows[2]
+                          }}
+                          formatter={(value) => [`${value} transfers`, 'Activity']}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="transfers" 
+                          stroke={theme.palette.primary.main} 
+                          strokeWidth={2}
+                          dot={{
+                            fill: theme.palette.primary.main,
+                            stroke: theme.palette.background.paper,
+                            strokeWidth: 2,
+                            r: 4
+                          }}
+                          activeDot={{
+                            r: 6,
+                            stroke: theme.palette.primary.main,
+                            strokeWidth: 2,
+                            fill: theme.palette.background.paper
+                          }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
                 </Box>
               </Card>
             </Grid>
@@ -1001,45 +1070,52 @@ const ClubDashboard = () => {
                 <Box sx={{ p: 2.5, borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>Squad Distribution</Typography>
                 </Box>
-                <Box sx={{ p: 2, height: 240 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={squadDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                      <XAxis 
-                        dataKey="name" 
-                        axisLine={false} 
-                        tickLine={false}
-                        tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                      />
-                      <YAxis 
-                        axisLine={false} 
-                        tickLine={false}
-                        tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
-                      />
-                      <RechartsTooltip 
-                        contentStyle={{
-                          backgroundColor: theme.palette.background.paper,
-                          border: `1px solid ${theme.palette.divider}`,
-                          borderRadius: theme.shape.borderRadius,
-                          boxShadow: theme.shadows[2]
-                        }}
-                      />
-                      <Bar 
-                        dataKey="value" 
-                        fill={theme.palette.primary.main}
-                        radius={[4, 4, 0, 0]}
-                      >
-                        {squadDistribution.map((entry, index) => (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={
-                              index % 2 === 0 ? theme.palette.primary.main : theme.palette.primary.light
-                            } 
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                <Box sx={{ p: 2, minHeight: 240 }}>
+                  {squadDistributionData.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 4 }}>
+                      <Typography color="text.secondary">No players added yet</Typography>
+                    </Box>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={squadDistributionData}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          allowDecimals={false}
+                          tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
+                          domain={[0, (dataMax) => Math.max(dataMax, 1)]}
+                        />
+                        <RechartsTooltip 
+                          contentStyle={{
+                            backgroundColor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: theme.shape.borderRadius,
+                            boxShadow: theme.shadows[2]
+                          }}
+                          formatter={(value) => [value, 'Players']}
+                        />
+                        <Bar 
+                          dataKey="value" 
+                          fill={theme.palette.primary.main}
+                          radius={[4, 4, 0, 0]}
+                        >
+                          {squadDistributionData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={index % 2 === 0 ? theme.palette.primary.main : theme.palette.primary.light}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
                 </Box>
               </Card>
             </Grid>

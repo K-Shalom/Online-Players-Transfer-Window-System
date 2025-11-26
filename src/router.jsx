@@ -22,6 +22,7 @@ import ClubPlayers from "./pages/ClubPlayers";
 import ClubTransfers from "./pages/ClubTransfers";
 import ClubOffers from "./pages/ClubOffers";
 import ClubWishlist from "./pages/ClubWishlist";
+import ClubSetup from "./pages/ClubSetup";
 import PlayersManagement from "./pages/PlayersManagement";
 import PlayersManagementDataGrid from "./pages/PlayersManagementDataGrid";
 import ClubsManagement from "./pages/ClubsManagement";
@@ -112,6 +113,7 @@ const router = createBrowserRouter(
           {/* CLUB ROUTES */}
           <Route path="club">
             <Route index element={<ClubDashboard />} />
+            <Route path="setup" element={<ClubSetup />} />
             <Route path="players" element={<ClubPlayers />} />
             <Route path="transfers" element={<ClubTransfers />} />
             <Route path="offers" element={<ClubOffers />} />
