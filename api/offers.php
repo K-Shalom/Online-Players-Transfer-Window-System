@@ -11,6 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include 'config.php';
+include 'email_service.php';
+include 'fraud_detection.php';
 
 // Transfer window helpers
 function tw_ensure($conn) {
@@ -186,7 +188,87 @@ elseif ($method === 'POST') {
         // Update transfer status to negotiation
         $conn->query("UPDATE transfers SET status = 'negotiation' WHERE transfer_id = $transfer_id");
         
-        echo json_encode(["success" => true, "message" => "Offer submitted successfully", "offer_id" => $conn->insert_id]);
+        // Initialize fraud detection
+        $fraudDetection = new FraudDetection($conn);
+        $fraudDetection->ensureFraudTables();
+        
+        // Prepare data for fraud detection
+        $fraudData = [
+            'transfer_id' => $transfer_id,
+            'buyer_club_id' => $buyer_club_id,
+            'seller_club_id' => $transfer['seller_club_id'],
+            'offered_amount' => $offered_amount,
+            'player_name' => '', // Will be filled below
+            'position' => '', // Will be filled below
+            'age' => '', // Will be filled below
+            'nationality' => '', // Will be filled below
+            'market_value' => '' // Will be filled below
+        ];
+        
+        // Get player details for fraud detection
+        $playerStmt = $conn->prepare("SELECT p.name, p.position, p.age, p.nationality, p.market_value 
+                                      FROM transfers t
+                                      LEFT JOIN players p ON t.player_id = p.player_id
+                                      WHERE t.transfer_id = ?");
+        $playerStmt->bind_param("i", $transfer_id);
+        $playerStmt->execute();
+        $playerData = $playerStmt->get_result()->fetch_assoc();
+        
+        if ($playerData) {
+            $fraudData['player_name'] = $playerData['name'];
+            $fraudData['position'] = $playerData['position'];
+            $fraudData['age'] = $playerData['age'];
+            $fraudData['nationality'] = $playerData['nationality'];
+            $fraudData['market_value'] = $playerData['market_value'];
+        }
+        
+        // Run fraud detection
+        $fraudResult = $fraudDetection->validateTransferData($fraudData);
+        
+        // Send email notification to selling club
+        $emailService = new EmailService($conn);
+        
+        // Get offer details for email
+        $offerData = [
+            'transfer_id' => $transfer_id,
+            'buyer_club_id' => $buyer_club_id,
+            'seller_club_id' => $transfer['seller_club_id'],
+            'offered_amount' => $offered_amount,
+            'player_name' => $fraudData['player_name'],
+            'position' => $fraudData['position'],
+            'age' => $fraudData['age'],
+            'buyer_club' => '', // Will be filled below
+            'transfer_type' => 'Permanent'
+        ];
+        
+        // Get club details for email
+        $clubStmt = $conn->prepare("SELECT club_name FROM clubs WHERE club_id = ?");
+        $clubStmt->bind_param("i", $buyer_club_id);
+        $clubStmt->execute();
+        $clubData = $clubStmt->get_result()->fetch_assoc();
+        
+        if ($clubData) {
+            $offerData['buyer_club'] = $clubData['club_name'];
+        }
+        
+        // Send notification (non-blocking)
+        $emailService->sendTransferOfferNotification($offerData);
+        
+        $response = [
+            "success" => true, 
+            "message" => "Offer submitted successfully", 
+            "offer_id" => $conn->insert_id
+        ];
+        
+        // Include fraud warning if detected
+        if (!$fraudResult['valid']) {
+            $response['fraud_warning'] = [
+                'risk_score' => $fraudResult['risk_score'],
+                'violations' => $fraudResult['violations']
+            ];
+        }
+        
+        echo json_encode($response);
     } else {
         echo json_encode(["success" => false, "message" => "Failed to create offer"]);
     }
@@ -236,6 +318,44 @@ elseif ($method === 'PUT') {
             $amount = $offer['offered_amount'];
             $conn->query("UPDATE transfers SET buyer_club_id = $buyer_club_id, amount = $amount, status = 'accepted' WHERE transfer_id = $transfer_id");
             
+            // Send email notification to buying club
+            $emailService = new EmailService($conn);
+            
+            // Get offer details for email
+            $offerData = [
+                'transfer_id' => $transfer_id,
+                'buyer_club_id' => $offer['buyer_club_id'],
+                'seller_club_id' => $offer['seller_club_id'],
+                'offered_amount' => $offer['offered_amount'],
+                'player_name' => '', // Will be filled below
+                'position' => '', // Will be filled below
+                'buyer_club' => '', // Will be filled below
+                'seller_club' => '' // Will be filled below
+            ];
+            
+            // Get player and club details for email
+            $detailsStmt = $conn->prepare("SELECT p.name as player_name, p.position, 
+                                                 bc.club_name as buyer_club,
+                                                 sc.club_name as seller_club
+                                          FROM transfers t
+                                          LEFT JOIN players p ON t.player_id = p.player_id
+                                          LEFT JOIN clubs bc ON t.buyer_club_id = bc.club_id
+                                          LEFT JOIN clubs sc ON t.seller_club_id = sc.club_id
+                                          WHERE t.transfer_id = ?");
+            $detailsStmt->bind_param("i", $transfer_id);
+            $detailsStmt->execute();
+            $details = $detailsStmt->get_result()->fetch_assoc();
+            
+            if ($details) {
+                $offerData['player_name'] = $details['player_name'];
+                $offerData['position'] = $details['position'];
+                $offerData['buyer_club'] = $details['buyer_club'];
+                $offerData['seller_club'] = $details['seller_club'];
+            }
+            
+            // Send notification (non-blocking)
+            $emailService->sendOfferAcceptanceNotification($offerData);
+            
             echo json_encode(["success" => true, "message" => "Offer accepted successfully"]);
         } else {
             echo json_encode(["success" => false, "message" => "Failed to accept offer"]);
@@ -255,6 +375,44 @@ elseif ($method === 'PUT') {
             if ($row['count'] == 0) {
                 $conn->query("UPDATE transfers SET status = 'pending' WHERE transfer_id = $transfer_id");
             }
+            
+            // Send email notification to buying club
+            $emailService = new EmailService($conn);
+            
+            // Get offer details for email
+            $offerData = [
+                'transfer_id' => $transfer_id,
+                'buyer_club_id' => $offer['buyer_club_id'],
+                'seller_club_id' => $offer['seller_club_id'],
+                'offered_amount' => $offer['offered_amount'],
+                'player_name' => '', // Will be filled below
+                'position' => '', // Will be filled below
+                'buyer_club' => '', // Will be filled below
+                'seller_club' => '' // Will be filled below
+            ];
+            
+            // Get player and club details for email
+            $detailsStmt = $conn->prepare("SELECT p.name as player_name, p.position, 
+                                                 bc.club_name as buyer_club,
+                                                 sc.club_name as seller_club
+                                          FROM transfers t
+                                          LEFT JOIN players p ON t.player_id = p.player_id
+                                          LEFT JOIN clubs bc ON ? = bc.club_id
+                                          LEFT JOIN clubs sc ON t.seller_club_id = sc.club_id
+                                          WHERE t.transfer_id = ?");
+            $detailsStmt->bind_param("ii", $offer['buyer_club_id'], $transfer_id);
+            $detailsStmt->execute();
+            $details = $detailsStmt->get_result()->fetch_assoc();
+            
+            if ($details) {
+                $offerData['player_name'] = $details['player_name'];
+                $offerData['position'] = $details['position'];
+                $offerData['buyer_club'] = $details['buyer_club'];
+                $offerData['seller_club'] = $details['seller_club'];
+            }
+            
+            // Send notification (non-blocking)
+            $emailService->sendOfferRejectionNotification($offerData);
             
             echo json_encode(["success" => true, "message" => "Offer rejected"]);
         } else {

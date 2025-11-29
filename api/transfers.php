@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include 'config.php';
+include 'pdf_generator.php';
 
 $tw_helpers_defined = true;
 if (!function_exists('tw_ensure')) {
@@ -221,17 +222,64 @@ if ($method === 'PUT') {
     }
     
     if ($stmt->execute()) {
-        // If transfer is completed, update player's club
+        // If transfer is completed, update player's club and generate PDF
         if ($status === 'completed') {
-            $getTransfer = $conn->prepare("SELECT buyer_club_id, player_id FROM transfers WHERE transfer_id=?");
+            $getTransfer = $conn->prepare("SELECT t.*, p.name as player_name, p.position, p.age, p.nationality, 
+                                                 sc.club_name as seller_club, bc.club_name as buyer_club 
+                                                 FROM transfers t 
+                                                 LEFT JOIN players p ON t.player_id = p.player_id
+                                                 LEFT JOIN clubs sc ON t.seller_club_id = sc.club_id
+                                                 LEFT JOIN clubs bc ON t.buyer_club_id = bc.club_id
+                                                 WHERE t.transfer_id=?");
             $getTransfer->bind_param("i", $transferId);
             $getTransfer->execute();
             $transferData = $getTransfer->get_result()->fetch_assoc();
             
             if ($transferData) {
+                // Update player's club
                 $updatePlayer = $conn->prepare("UPDATE players SET club_id=? WHERE player_id=?");
                 $updatePlayer->bind_param("ii", $transferData['buyer_club_id'], $transferData['player_id']);
                 $updatePlayer->execute();
+                
+                // Generate PDF agreement
+                $pdfData = [
+                    'transfer_id' => $transferId,
+                    'transfer_type' => $transferData['type'],
+                    'transfer_fee' => number_format($transferData['amount'], 2),
+                    'player_name' => $transferData['player_name'],
+                    'position' => $transferData['position'],
+                    'age' => $transferData['age'],
+                    'nationality' => $transferData['nationality'],
+                    'seller_club' => $transferData['seller_club'],
+                    'buyer_club' => $transferData['buyer_club'],
+                    'contract_duration' => '3', // Default duration
+                    'contract_start' => date('Y-m-d'),
+                    'contract_end' => date('Y-m-d', strtotime('+3 years')),
+                    'weekly_salary' => 'To be determined',
+                    'signing_bonus' => 'To be determined',
+                    'performance_bonuses' => 'To be determined',
+                    'market_value' => number_format($transferData['amount'], 2),
+                    'league' => 'Premier League',
+                    'season' => date('Y')
+                ];
+                
+                $pdfGenerator = generateTransferAgreement($pdfData);
+                if ($pdfGenerator) {
+                    $pdfFilename = 'transfer_agreement_' . $transferId . '_' . time() . '.pdf';
+                    $pdfPath = 'agreements/' . $pdfFilename;
+                    
+                    // Create agreements directory if it doesn't exist
+                    if (!is_dir('agreements')) {
+                        mkdir('agreements', 0777, true);
+                    }
+                    
+                    if ($pdfGenerator->savePDF($pdfPath)) {
+                        // Save PDF path to database
+                        $updatePdf = $conn->prepare("UPDATE transfers SET agreement_pdf=? WHERE transfer_id=?");
+                        $updatePdf->bind_param("si", $pdfPath, $transferId);
+                        $updatePdf->execute();
+                    }
+                }
             }
         }
         
