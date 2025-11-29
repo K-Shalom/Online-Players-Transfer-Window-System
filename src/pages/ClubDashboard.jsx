@@ -34,7 +34,8 @@ import {
   SportsSoccer as SoccerIcon,
   EmojiEvents as TrophyIcon,
   Star as StarIcon,
-  PersonAdd as PersonAddIcon
+  PersonAdd as PersonAddIcon,
+  CheckCircle
 } from '@mui/icons-material';
 import { getClubs, getPlayers, getTransfers, getOffersByClub, getWishlists } from '../services/api';
 import { useTheme } from '@mui/material/styles';
@@ -52,21 +53,22 @@ const ClubDashboard = () => {
     totalValue: 0,
     avgPlayerValue: 0
   });
-  
+
   const [clubInfo, setClubInfo] = useState({
-    club_name: 'Loading...',
+    club_name: '',
     country: '',
-    manager: 'Loading...',
+    manager: '',
     founded: 1900,
-    stadium: 'Loading Stadium',
-    capacity: 0
+    stadium: '',
+    capacity: 0,
+    status: 'pending'
   });
-  
+
   const [recentPlayers, setRecentPlayers] = useState([]);
   const [recentTransfers, setRecentTransfers] = useState([]);
   const [performanceTrend, setPerformanceTrend] = useState([]);
   const [squadDistributionData, setSquadDistributionData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
@@ -76,6 +78,19 @@ const ClubDashboard = () => {
     fetchDashboardData();
   }, []);
 
+  const parseMarketValue = (value) => {
+    if (!value) return 0;
+    const strVal = value.toString().replace(/[$,]/g, '');
+
+    if (strVal.toUpperCase().includes('M')) {
+      return parseFloat(strVal.replace(/M/i, '')) * 1000000;
+    }
+    if (strVal.toUpperCase().includes('K')) {
+      return parseFloat(strVal.replace(/K/i, '')) * 1000;
+    }
+    return parseFloat(strVal) || 0;
+  };
+
   const fetchDashboardData = async () => {
     try {
       setRefreshing(true);
@@ -83,12 +98,19 @@ const ClubDashboard = () => {
 
       // Fetch club info
       const clubsRes = await getClubs();
-      if (clubsRes?.data?.success) {
+
+      if (!clubsRes?.data) {
+        setError('Failed to fetch clubs data');
+        return;
+      }
+
+      if (clubsRes.data.success) {
         const userClub = clubsRes.data.data?.find(c => c.user_id == user.user_id) || {};
+
         setClubInfo(prev => ({
           ...prev,
           ...userClub,
-          club_name: userClub.club_name || 'My Club',
+          club_name: userClub.name,
           manager: userClub.manager || 'Unknown Manager'
         }));
 
@@ -98,10 +120,10 @@ const ClubDashboard = () => {
           if (playersRes?.data?.success) {
             const clubPlayers = playersRes.data.data?.filter(p => p.club_id == userClub.id) || [];
             setRecentPlayers(clubPlayers.slice(0, 5));
-            
-            const totalValue = clubPlayers.reduce((sum, p) => sum + parseFloat(p.market_value || 0), 0);
+
+            const totalValue = clubPlayers.reduce((sum, p) => sum + parseMarketValue(p.market_value), 0);
             const avgValue = clubPlayers.length > 0 ? totalValue / clubPlayers.length : 0;
-            
+
             setStats(prev => ({
               ...prev,
               totalPlayers: clubPlayers.length,
@@ -144,7 +166,7 @@ const ClubDashboard = () => {
               ) || [];
               const activeTransfers = clubTransfers.filter(t => t.status !== 'completed' && t.status !== 'rejected');
               setRecentTransfers(clubTransfers.slice(0, 5));
-              
+
               setStats(prev => ({
                 ...prev,
                 activeTransfers: activeTransfers.length
@@ -165,7 +187,7 @@ const ClubDashboard = () => {
                   };
                 }
                 trendAccumulator[key].transfers += 1;
-                trendAccumulator[key].amount += parseFloat(transfer.amount_raw || transfer.amount || 0);
+                trendAccumulator[key].amount += parseMarketValue(transfer.amount_raw || transfer.amount);
               });
 
               const trendData = Object.values(trendAccumulator)
@@ -219,12 +241,15 @@ const ClubDashboard = () => {
       setRefreshing(false);
     }
   };
-  
+
   const handleRefresh = () => {
     fetchDashboardData();
   };
 
   const formatCurrency = (amount) => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -292,7 +317,7 @@ const ClubDashboard = () => {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Your club profile is awaiting admin approval. You will see full data once approved.
+          Your club profile is awaiting admin approval. You will see full data once your club is approved.
         </Alert>
         <Button variant="outlined" onClick={() => navigate('/club/setup')}>View/Update Submitted Details</Button>
       </Box>
@@ -319,145 +344,148 @@ const ClubDashboard = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header with Club Info */}
-      <Box 
+      <Box
         sx={{
-          background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(180deg, #1a1a1a 0%, #141414 100%)'
-            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-          color: theme.palette.mode === 'dark' ? theme.palette.text.primary : 'white',
-          borderRadius: 2,
-          p: 3,
+          background: 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)', // Green gradient
+          color: 'white',
+          borderRadius: 4, // More rounded corners
+          p: 4,
           mb: 4,
           position: 'relative',
           overflow: 'hidden',
-          boxShadow: theme.palette.mode === 'dark' ? 'none' : theme.shadows[4],
-          border: theme.palette.mode === 'dark' ? '1px solid #2a2a2a' : 'none'
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
         }}
       >
-        <Box sx={{ position: 'relative', zIndex: 1 }}>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: 'center', gap: 3 }}>
+        <Box sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+
+          {/* Left Side: Avatar and Info */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <Avatar
+              src={clubInfo.logo_url}
+              alt={clubInfo.club_name}
               sx={{
-                width: 100,
-                height: 100,
-                bgcolor: theme.palette.mode === 'dark' ? '#2a2a2a' : 'white',
-                color: theme.palette.mode === 'dark' ? theme.palette.text.primary : theme.palette.primary.main,
-                fontSize: '2.5rem',
-                border: '3px solid',
-                borderColor: theme.palette.mode === 'dark' ? '#2a2a2a' : 'white',
-                boxShadow: theme.shadows[3]
+                width: 80,
+                height: 80,
+                bgcolor: 'white',
+                p: 1,
+                '& img': { objectFit: 'contain' }
               }}
             >
               {clubInfo.club_name?.[0]?.toUpperCase() || 'C'}
             </Avatar>
-            
-            <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'center', md: 'flex-start' }, gap: 1, mb: 1 }}>
-                <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                  {clubInfo.club_name || 'My Club'}
+
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 0.5 }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'white' }}>
+                  {clubInfo.club_name}
                 </Typography>
-                <Chip 
-                  label={clubInfo.status || 'active'} 
-                  color={clubInfo.status === 'approved' ? 'success' : 'warning'}
+                <Chip
+                  label={clubInfo.club_name}
                   size="small"
-                  sx={{ 
-                    color: 'white',
+                  sx={{
                     bgcolor: 'rgba(255,255,255,0.2)',
-                    height: 20,
-                    '& .MuiChip-label': { px: 1 }
+                    color: 'white',
+                    height: 24,
+                    fontSize: '0.75rem',
+                    backdropFilter: 'blur(4px)'
                   }}
                 />
               </Box>
-              
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, justifyContent: { xs: 'center', md: 'flex-start' }, mb: 2 }}>
-                <Chip 
-                  icon={<TrophyIcon />} 
-                  label={`Founded: ${clubInfo.founded || 'N/A'}`} 
-                  size="small" 
-                  sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }} 
-                />
-                <Chip 
-                  icon={<PeopleIcon />} 
-                  label={clubInfo.stadium || 'Unknown Stadium'} 
-                  size="small" 
-                  sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }} 
-                />
-                {clubInfo.capacity > 0 && (
-                  <Chip 
-                    label={`Capacity: ${clubInfo.capacity.toLocaleString()}`} 
-                    size="small" 
-                    sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }} 
-                  />
-                )}
-              </Box>
-              
-              <Typography variant="body1" sx={{ opacity: 0.9, maxWidth: '800px' }}>
+
+              <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.9)' }}>
                 {clubInfo.country ? `${clubInfo.country} • ` : ''}Manager: {clubInfo.manager}
               </Typography>
             </Box>
-            
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Tooltip title="Refresh Data">
-                <IconButton 
-                  onClick={handleRefresh} 
-                  disabled={refreshing}
-                  sx={{ 
-                    color: 'white',
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
-                  }}
-                >
-                  <RefreshIcon />
-                </IconButton>
-              </Tooltip>
-              <Button 
-                variant="contained" 
-                color="secondary" 
-                startIcon={<PersonAddIcon />}
-                sx={{ 
-                  bgcolor: 'white',
-                  color: theme.palette.primary.main,
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' }
+          </Box>
+
+          {/* Right Side: Actions */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Tooltip title="Refresh Data">
+              <IconButton
+                onClick={handleRefresh}
+                disabled={refreshing}
+                sx={{
+                  color: 'white',
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                  width: 45,
+                  height: 45,
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.25)',
+                  },
+                  '&:disabled': {
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    color: 'rgba(255,255,255,0.3)',
+                  }
                 }}
               >
-                Add Player
-              </Button>
-            </Box>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Button
+              variant="contained"
+              startIcon={<PersonAddIcon />}
+              sx={{
+                bgcolor: 'white',
+                color: '#1b5e20', // Green text
+                fontWeight: 600,
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.9)'
+                },
+                textTransform: 'uppercase'
+              }}
+            >
+              Add Player
+            </Button>
           </Box>
         </Box>
-        
-        {/* Decorative elements */}
+
+        {/* Decorative elements - Background Shapes */}
         <Box sx={{
           position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '40%',
-          height: '100%',
-          background: theme.palette.mode === 'dark'
-            ? 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 70%)'
-            : 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-          opacity: 0.5
+          top: -20,
+          left: -20,
+          width: 200,
+          height: 100,
+          bgcolor: 'rgba(255,255,255,0.05)',
+          borderRadius: 10,
+          transform: 'rotate(-10deg)'
+        }} />
+        <Box sx={{
+          position: 'absolute',
+          bottom: -30,
+          left: 100,
+          width: 150,
+          height: 80,
+          bgcolor: 'rgba(255,255,255,0.05)',
+          borderRadius: 10,
+          transform: 'rotate(5deg)'
         }} />
       </Box>
 
       {/* Error Alert */}
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
-            mb: 3, 
+        <Alert
+          severity="error"
+          sx={{
+            mb: 3,
             borderRadius: 2,
             '& .MuiAlert-message': { width: '100%' }
           }}
           action={
-            <Button 
-              color="inherit" 
-              size="small" 
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              Try Again
-            </Button>
+            <span>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                Try Again
+              </Button>
+            </span>
           }
         >
           {error}
@@ -467,21 +495,21 @@ const ClubDashboard = () => {
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} lg={3}>
-          <Card 
-            sx={{ 
+          <Card
+            sx={{
               height: '100%',
-              background: theme.palette.mode === 'dark' 
-                ? theme.palette.background.paper 
+              background: theme.palette.mode === 'dark'
+                ? theme.palette.background.paper
                 : 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
               border: `1px solid ${theme.palette.divider}`,
-              boxShadow: theme.palette.mode === 'dark' 
-                ? 'none' 
+              boxShadow: theme.palette.mode === 'dark'
+                ? 'none'
                 : '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
               transition: 'transform 0.2s, box-shadow 0.2s',
               '&:hover': {
                 transform: 'translateY(-4px)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? 'none' 
+                boxShadow: theme.palette.mode === 'dark'
+                  ? 'none'
                   : '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)'
               }
             }}
@@ -522,8 +550,8 @@ const ClubDashboard = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} lg={3}>
-          <Card 
-            sx={{ 
+          <Card
+            sx={{
               height: '100%',
               background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
               border: '1px solid rgba(0,0,0,0.05)',
@@ -572,8 +600,8 @@ const ClubDashboard = () => {
         </Grid>
 
         <Grid item xs={12} sm={6} lg={3}>
-          <Card 
-            sx={{ 
+          <Card
+            sx={{
               height: '100%',
               background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
               border: '1px solid rgba(0,0,0,0.05)',
@@ -619,75 +647,14 @@ const ClubDashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid item xs={12} sm={6} lg={3}>
-          <Card 
-            sx={{ 
-              height: '100%',
-              background: 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
-              border: '1px solid rgba(0,0,0,0.05)',
-              boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)'
-              }
-            }}
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="text.secondary" variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                    TEAM RATING
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      {stats.teamRating}
-                    </Typography>
-                    <Chip 
-                      label={stats.form} 
-                      size="small" 
-                      color="primary" 
-                      sx={{ 
-                        height: 20, 
-                        '& .MuiChip-label': { px: 1 },
-                        bgcolor: 'primary.light',
-                        color: 'primary.dark',
-                        fontWeight: 700
-                      }} 
-                    />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                    Next match: {stats.nextMatch} in {stats.daysToNextMatch}d
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: '12px',
-                    bgcolor: 'secondary.light',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'secondary.contrastText',
-                    flexShrink: 0
-                  }}
-                >
-                  <StarIcon fontSize="large" />
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
 
       {/* Main Content Area */}
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ mt: 0 }}>
         {/* Squad Overview */}
-        <Grid item xs={12} lg={8}>
-          <Card 
-            sx={{ 
+        <Grid item xs={12} lg={7}>
+          <Card
+            sx={{
               height: '100%',
               boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
               border: '1px solid rgba(0,0,0,0.05)'
@@ -699,17 +666,17 @@ const ClubDashboard = () => {
                   <PeopleIcon color="primary" />
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>Squad Overview</Typography>
                 </Box>
-                <Button 
-                  size="small" 
+                <Button
+                  size="small"
                   color="primary"
                   startIcon={<AddIcon />}
-                  onClick={() => {}}
+                  onClick={() => { }}
                 >
                   Add Player
                 </Button>
               </Box>
             </Box>
-            
+
             <TableContainer sx={{ maxHeight: 440, overflow: 'auto' }}>
               <Table size="small" stickyHeader>
                 <TableHead>
@@ -729,12 +696,12 @@ const ClubDashboard = () => {
                         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                           <SoccerIcon sx={{ fontSize: 40, opacity: 0.5 }} />
                           <Typography color="text.secondary">No players in squad</Typography>
-                          <Button 
-                            variant="outlined" 
-                            size="small" 
+                          <Button
+                            variant="outlined"
+                            size="small"
                             startIcon={<AddIcon />}
                             sx={{ mt: 1 }}
-                            onClick={() => {}}
+                            onClick={() => { }}
                           >
                             Add Player
                           </Button>
@@ -743,18 +710,18 @@ const ClubDashboard = () => {
                     </TableRow>
                   ) : (
                     recentPlayers.map((player) => (
-                      <TableRow 
+                      <TableRow
                         key={player.player_id}
-                        hover 
-                        sx={{ 
+                        hover
+                        sx={{
                           '&:last-child td, &:last-child th': { border: 0 },
                           '&:hover': { bgcolor: 'action.hover' }
                         }}
                       >
                         <TableCell sx={{ minWidth: 200 }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <Avatar 
-                              src={player.photo} 
+                            <Avatar
+                              src={player.photo}
                               alt={player.name}
                               sx={{ width: 36, height: 36 }}
                             >
@@ -771,14 +738,14 @@ const ClubDashboard = () => {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Chip 
-                            label={player.position} 
-                            size="small" 
+                          <Chip
+                            label={player.position}
+                            size="small"
                             variant="outlined"
                             color={
-                              player.position === 'Goalkeeper' ? 'primary' : 
-                              player.position === 'Defender' ? 'success' :
-                              player.position === 'Midfielder' ? 'warning' : 'error'
+                              player.position === 'Goalkeeper' ? 'primary' :
+                                player.position === 'Defender' ? 'success' :
+                                  player.position === 'Midfielder' ? 'warning' : 'error'
                             }
                           />
                         </TableCell>
@@ -786,7 +753,7 @@ const ClubDashboard = () => {
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                             <Typography variant="body2" fontWeight={500}>
-                              {player.market_value ? `$${(player.market_value / 1000000).toFixed(1)}M` : '-'}
+                              {formatCurrency(parseMarketValue(player.market_value))}
                             </Typography>
                             {player.market_value_change > 0 && (
                               <TrendingUpIcon color="success" sx={{ fontSize: 16 }} />
@@ -801,19 +768,19 @@ const ClubDashboard = () => {
                             label={player.health_status}
                             size="small"
                             color={getHealthColor(player.health_status)}
-                            sx={{ 
+                            sx={{
                               textTransform: 'capitalize',
-                              '&.MuiChip-colorSuccess': { 
-                                bgcolor: 'success.light', 
-                                color: 'success.dark' 
+                              '&.MuiChip-colorSuccess': {
+                                bgcolor: 'success.light',
+                                color: 'success.dark'
                               },
-                              '&.MuiChip-colorError': { 
-                                bgcolor: 'error.light', 
-                                color: 'error.dark' 
+                              '&.MuiChip-colorError': {
+                                bgcolor: 'error.light',
+                                color: 'error.dark'
                               },
-                              '&.MuiChip-colorWarning': { 
-                                bgcolor: 'warning.light', 
-                                color: 'warning.dark' 
+                              '&.MuiChip-colorWarning': {
+                                bgcolor: 'warning.light',
+                                color: 'warning.dark'
                               }
                             }}
                           />
@@ -821,14 +788,18 @@ const ClubDashboard = () => {
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 0.5 }}>
                             <Tooltip title="View Profile">
-                              <IconButton size="small" color="primary">
-                                <PeopleIcon fontSize="small" />
-                              </IconButton>
+                              <span>
+                                <IconButton size="small" color="primary">
+                                  <PeopleIcon fontSize="small" />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                             <Tooltip title="Transfer List">
-                              <IconButton size="small" color="secondary">
-                                <TransferIcon fontSize="small" />
-                              </IconButton>
+                              <span>
+                                <IconButton size="small" color="secondary">
+                                  <TransferIcon fontSize="small" />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                           </Box>
                         </TableCell>
@@ -838,7 +809,7 @@ const ClubDashboard = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-            
+
             {recentPlayers.length > 0 && (
               <Box sx={{ p: 2, borderTop: '1px solid rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'flex-end' }}>
                 <Button size="small" color="primary">
@@ -848,14 +819,14 @@ const ClubDashboard = () => {
             )}
           </Card>
         </Grid>
-        
+
         {/* Right Sidebar */}
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} lg={5}>
           <Grid container spacing={3} direction="column">
             {/* Recent Transfers */}
             <Grid item>
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                   border: '1px solid rgba(0,0,0,0.05)'
                 }}
@@ -866,16 +837,16 @@ const ClubDashboard = () => {
                       <TransferIcon color="primary" />
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>Recent Transfers</Typography>
                     </Box>
-                    <Button 
-                      size="small" 
+                    <Button
+                      size="small"
                       color="primary"
-                      onClick={() => {}}
+                      onClick={() => { }}
                     >
                       View All
                     </Button>
                   </Box>
                 </Box>
-                
+
                 <Box sx={{ p: 2, maxHeight: 300, overflow: 'auto' }}>
                   {recentTransfers.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 3 }}>
@@ -885,7 +856,7 @@ const ClubDashboard = () => {
                   ) : (
                     <Box sx={{ '& > *:not(:last-child)': { mb: 2 } }}>
                       {recentTransfers.map((transfer) => (
-                        <Box 
+                        <Box
                           key={transfer.transfer_id}
                           sx={{
                             p: 1.5,
@@ -895,8 +866,8 @@ const ClubDashboard = () => {
                           }}
                         >
                           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                            <Avatar 
-                              src={transfer.player_photo} 
+                            <Avatar
+                              src={transfer.player_photo}
                               sx={{ width: 32, height: 32, mr: 1.5 }}
                             >
                               {transfer.player_name?.[0]}
@@ -906,10 +877,10 @@ const ClubDashboard = () => {
                                 {transfer.player_name}
                               </Typography>
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Chip 
-                                  label={transfer.type} 
-                                  size="small" 
-                                  color="primary" 
+                                <Chip
+                                  label={transfer.type}
+                                  size="small"
+                                  color="primary"
                                   variant="outlined"
                                   sx={{ height: 20, '& .MuiChip-label': { px: 1 } }}
                                 />
@@ -926,37 +897,37 @@ const ClubDashboard = () => {
                                 label={transfer.status}
                                 size="small"
                                 color={getStatusColor(transfer.status)}
-                                sx={{ 
-                                  height: 20, 
+                                sx={{
+                                  height: 20,
                                   '& .MuiChip-label': { px: 1 },
-                                  '&.MuiChip-colorSuccess': { 
-                                    bgcolor: 'success.light', 
-                                    color: 'success.dark' 
+                                  '&.MuiChip-colorSuccess': {
+                                    bgcolor: 'success.light',
+                                    color: 'success.dark'
                                   },
-                                  '&.MuiChip-colorError': { 
-                                    bgcolor: 'error.light', 
-                                    color: 'error.dark' 
+                                  '&.MuiChip-colorError': {
+                                    bgcolor: 'error.light',
+                                    color: 'error.dark'
                                   },
-                                  '&.MuiChip-colorWarning': { 
-                                    bgcolor: 'warning.light', 
-                                    color: 'warning.dark' 
+                                  '&.MuiChip-colorWarning': {
+                                    bgcolor: 'warning.light',
+                                    color: 'warning.dark'
                                   }
                                 }}
                               />
                             </Box>
                           </Box>
-                          
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
+
+                          <Box sx={{
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'space-between',
                             mt: 1,
                             pt: 1,
                             borderTop: '1px dashed rgba(0,0,0,0.08)'
                           }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar 
-                                src={transfer.seller_club_logo} 
+                              <Avatar
+                                src={transfer.seller_club_logo}
                                 sx={{ width: 24, height: 24 }}
                               >
                                 {transfer.seller_club_name?.[0]}
@@ -965,16 +936,16 @@ const ClubDashboard = () => {
                                 {transfer.seller_club_name}
                               </Typography>
                             </Box>
-                            
+
                             <Box sx={{ px: 1 }}>
                               <Typography variant="caption" color="text.secondary">
                                 to
                               </Typography>
                             </Box>
-                            
+
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar 
-                                src={transfer.buyer_club_logo} 
+                              <Avatar
+                                src={transfer.buyer_club_logo}
                                 sx={{ width: 24, height: 24 }}
                               >
                                 {transfer.buyer_club_name?.[0]}
@@ -991,11 +962,11 @@ const ClubDashboard = () => {
                 </Box>
               </Card>
             </Grid>
-            
+
             {/* Performance Chart */}
             <Grid item>
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                   border: '1px solid rgba(0,0,0,0.05)'
                 }}
@@ -1012,20 +983,20 @@ const ClubDashboard = () => {
                     <ResponsiveContainer width="100%" height={240}>
                       <LineChart data={performanceTrend}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="name" 
-                          axisLine={false} 
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
                           tickLine={false}
                           tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
                         />
-                        <YAxis 
-                          axisLine={false} 
+                        <YAxis
+                          axisLine={false}
                           tickLine={false}
                           tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
                           allowDecimals={false}
                           domain={[0, (dataMax) => Math.max(dataMax, 1)]}
                         />
-                        <RechartsTooltip 
+                        <RechartsTooltip
                           contentStyle={{
                             backgroundColor: theme.palette.background.paper,
                             border: `1px solid ${theme.palette.divider}`,
@@ -1034,10 +1005,10 @@ const ClubDashboard = () => {
                           }}
                           formatter={(value) => [`${value} transfers`, 'Activity']}
                         />
-                        <Line 
-                          type="monotone" 
-                          dataKey="transfers" 
-                          stroke={theme.palette.primary.main} 
+                        <Line
+                          type="monotone"
+                          dataKey="transfers"
+                          stroke={theme.palette.primary.main}
                           strokeWidth={2}
                           dot={{
                             fill: theme.palette.primary.main,
@@ -1058,11 +1029,11 @@ const ClubDashboard = () => {
                 </Box>
               </Card>
             </Grid>
-            
+
             {/* Squad Distribution */}
             <Grid item>
-              <Card 
-                sx={{ 
+              <Card
+                sx={{
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                   border: '1px solid rgba(0,0,0,0.05)'
                 }}
@@ -1079,20 +1050,20 @@ const ClubDashboard = () => {
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={squadDistributionData}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis 
-                          dataKey="name" 
-                          axisLine={false} 
+                        <XAxis
+                          dataKey="name"
+                          axisLine={false}
                           tickLine={false}
                           tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
                         />
-                        <YAxis 
-                          axisLine={false} 
+                        <YAxis
+                          axisLine={false}
                           tickLine={false}
                           allowDecimals={false}
                           tick={{ fill: theme.palette.text.secondary, fontSize: 12 }}
                           domain={[0, (dataMax) => Math.max(dataMax, 1)]}
                         />
-                        <RechartsTooltip 
+                        <RechartsTooltip
                           contentStyle={{
                             backgroundColor: theme.palette.background.paper,
                             border: `1px solid ${theme.palette.divider}`,
@@ -1101,14 +1072,14 @@ const ClubDashboard = () => {
                           }}
                           formatter={(value) => [value, 'Players']}
                         />
-                        <Bar 
-                          dataKey="value" 
+                        <Bar
+                          dataKey="value"
                           fill={theme.palette.primary.main}
                           radius={[4, 4, 0, 0]}
                         >
                           {squadDistributionData.map((entry, index) => (
-                            <Cell 
-                              key={`cell-${index}`} 
+                            <Cell
+                              key={`cell-${index}`}
                               fill={index % 2 === 0 ? theme.palette.primary.main : theme.palette.primary.light}
                             />
                           ))}

@@ -21,11 +21,14 @@ import {
   LocalOffer as OfferIcon,
   Check as CheckIcon,
   Close as CloseIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { getOffersByClub, getClubs, acceptOffer, rejectOffer } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 const ClubOffers = () => {
+  const navigate = useNavigate();
   const [offers, setOffers] = useState([]);
   const [clubInfo, setClubInfo] = useState(null);
   const [tabValue, setTabValue] = useState(0);
@@ -97,7 +100,23 @@ const ClubOffers = () => {
     }
   };
 
+  const parseMarketValue = (value) => {
+    if (!value) return 0;
+    const strVal = value.toString().replace(/[$,]/g, '');
+
+    if (strVal.toUpperCase().includes('M')) {
+      return parseFloat(strVal.replace(/M/i, '')) * 1000000;
+    }
+    if (strVal.toUpperCase().includes('K')) {
+      return parseFloat(strVal.replace(/K/i, '')) * 1000;
+    }
+    return parseFloat(strVal) || 0;
+  };
+
   const formatCurrency = (amount) => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -144,10 +163,20 @@ const ClubOffers = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        <OfferIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-        My Offers - {clubInfo.club_name}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          <OfferIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+          My Offers - {clubInfo.club_name}
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/club/market')}
+          sx={{ borderRadius: 2 }}
+        >
+          Make New Offer
+        </Button>
+      </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
@@ -188,8 +217,8 @@ const ClubOffers = () => {
                   <Box sx={{ py: 3 }}>
                     <OfferIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                     <Typography color="text.secondary">
-                      {tabValue === 0 
-                        ? 'No offers yet. Start making offers for players you want!' 
+                      {tabValue === 0
+                        ? 'No offers yet. Start making offers for players you want!'
                         : 'No offers in this category'}
                     </Typography>
                   </Box>
@@ -210,7 +239,7 @@ const ClubOffers = () => {
                   <TableCell>{offer.seller_club || 'N/A'}</TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="bold" color="primary">
-                      {formatCurrency(offer.offered_amount)}
+                      {formatCurrency(parseMarketValue(offer.offered_amount))}
                     </Typography>
                   </TableCell>
                   <TableCell>

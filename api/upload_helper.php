@@ -46,7 +46,7 @@ function uploadImage($file, $folder = 'players') {
     if (move_uploaded_file($file['tmp_name'], $targetPath)) {
         // Return URL relative to API folder
         $response['success'] = true;
-        $response['url'] = 'http://localhost/optw_system/api/uploads/' . $folder . '/' . $filename;
+        $response['url'] = 'http://localhost/Online-Players-Transfer-Window-System/api/uploads/' . $folder . '/' . $filename;
         $response['message'] = 'File uploaded successfully';
     } else {
         $response['message'] = 'Failed to move uploaded file';
@@ -111,7 +111,7 @@ function handleBase64Upload($base64Data, $folder = 'players') {
     $targetPath = $uploadDir . $filename;
     if (file_put_contents($targetPath, $data)) {
         $response['success'] = true;
-        $response['url'] = 'http://localhost/optw_system/api/uploads/' . $folder . '/' . $filename;
+        $response['url'] = 'http://localhost/Online-Players-Transfer-Window-System/api/uploads/' . $folder . '/' . $filename;
         $response['message'] = 'Image uploaded successfully';
     } else {
         $response['message'] = 'Failed to save image';

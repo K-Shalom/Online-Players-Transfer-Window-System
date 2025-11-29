@@ -31,6 +31,7 @@ import OffersManagement from "./pages/OffersManagement";
 import WishlistManagement from "./pages/WishlistManagement";
 import ReportsManagement from "./pages/ReportsManagement";
 import Settings from "./pages/Settings";
+import PlayerMarket from "./pages/PlayerMarket";
 
 // Redirect component based on role
 const RoleRedirect = () => {
@@ -50,7 +51,7 @@ const RoleRedirect = () => {
 const ProtectedRoute = ({ adminOnly = false }) => {
   const storedUser = localStorage.getItem("user");
   let user = null;
-  
+
   try {
     user = storedUser ? JSON.parse(storedUser) : null;
   } catch (error) {
@@ -96,8 +97,8 @@ const router = createBrowserRouter(
           <Route path="/" element={<RoleRedirect />} />
 
           {/* ADMIN ROUTES */}
-          <Route element={<ProtectedRoute adminOnly />}>
-            <Route path="admin" element={<AdminDashboardContent />} />
+          <Route path="admin" element={<ProtectedRoute adminOnly />}>
+            <Route index element={<AdminDashboardContent />} />
             <Route path="players">
               <Route index element={<PlayersManagement />} />
               <Route path="grid" element={<PlayersManagementDataGrid />} />
@@ -106,6 +107,7 @@ const router = createBrowserRouter(
             <Route path="transfers" element={<TransfersManagement />} />
             <Route path="offers" element={<OffersManagement />} />
             <Route path="wishlist" element={<WishlistManagement />} />
+            <Route path="market" element={<PlayerMarket />} />
             <Route path="reports" element={<ReportsManagement />} />
             <Route path="settings" element={<Settings />} />
           </Route>
@@ -118,6 +120,7 @@ const router = createBrowserRouter(
             <Route path="transfers" element={<ClubTransfers />} />
             <Route path="offers" element={<ClubOffers />} />
             <Route path="wishlist" element={<ClubWishlist />} />
+            <Route path="market" element={<PlayerMarket />} />
           </Route>
 
           {/* GENERAL DASHBOARD - HANDLE BOTH ROLES */}

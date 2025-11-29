@@ -140,12 +140,28 @@ const ClubWishlist = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
+  const parseMarketValue = (value) => {
+    if (!value) return 0;
+    const strVal = value.toString().replace(/[$,]/g, '');
+
+    if (strVal.toUpperCase().includes('M')) {
+      return parseFloat(strVal.replace(/M/i, '')) * 1000000;
+    }
+    if (strVal.toUpperCase().includes('K')) {
+      return parseFloat(strVal.replace(/K/i, '')) * 1000;
+    }
+    return parseFloat(strVal) || 0;
+  };
+
+  const formatCurrency = (value) => {
+    if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0
-    }).format(amount);
+    }).format(value);
   };
 
   const getHealthColor = (status) => {
@@ -196,7 +212,7 @@ const ClubWishlist = () => {
             <strong>{wishlists.length}</strong> players in your wishlist
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Total estimated value: {formatCurrency(wishlists.reduce((sum, w) => sum + parseFloat(w.market_value || 0), 0))}
+            Total estimated value: {formatCurrency(wishlists.reduce((sum, w) => sum + parseMarketValue(w.market_value), 0))}
           </Typography>
         </CardContent>
       </Card>
@@ -254,7 +270,7 @@ const ClubWishlist = () => {
                     {item.current_club || 'Free Agent'}
                     {item.club_country && ` (${item.club_country})`}
                   </TableCell>
-                  <TableCell>{formatCurrency(item.market_value || 0)}</TableCell>
+                  <TableCell>{formatCurrency(parseMarketValue(item.market_value))}</TableCell>
                   <TableCell>
                     <Chip
                       label={item.health_status}
@@ -297,7 +313,7 @@ const ClubWishlist = () => {
             >
               {players.map((player) => (
                 <MenuItem key={player.player_id} value={player.player_id}>
-                  {player.name} - {player.position} ({player.club_name || 'Free Agent'}) - {formatCurrency(player.market_value || 0)}
+                  {player.name} - {player.position} ({player.club_name || 'Free Agent'}) - {formatCurrency(parseMarketValue(player.market_value))}
                 </MenuItem>
               ))}
             </Select>

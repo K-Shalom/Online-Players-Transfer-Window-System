@@ -1,5 +1,22 @@
 import axios from 'axios';
+
 const API_URL = 'http://localhost/Online-Players-Transfer-Window-System/api/';
+
+// Add axios interceptor to include authentication headers
+axios.interceptors.request.use(
+  (config) => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.user_id) {
+      // Create Bearer token with user_id:role format
+      const token = `${user.user_id}:${user.role || 'user'}`;
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 export const loginUser = (username, password) => {
   return axios.post(API_URL + 'login.php', { username, password });
@@ -40,11 +57,40 @@ export const getPlayer = (playerId) => {
 };
 
 export const addPlayer = (playerData) => {
-  return axios.post(API_URL + 'players.php', playerData);
+  const formData = new FormData();
+
+  Object.keys(playerData).forEach(key => {
+    if (key === 'photo' && playerData[key] instanceof File) {
+      formData.append('photo', playerData[key]);
+    } else if (playerData[key] !== null && playerData[key] !== undefined) {
+      formData.append(key, playerData[key]);
+    }
+  });
+
+  return axios.post(API_URL + 'players.php', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 };
 
 export const updatePlayer = (playerData) => {
-  return axios.put(API_URL + 'players.php', playerData);
+  const formData = new FormData();
+  formData.append('action', 'update');
+
+  Object.keys(playerData).forEach(key => {
+    if (key === 'photo' && playerData[key] instanceof File) {
+      formData.append('photo', playerData[key]);
+    } else if (playerData[key] !== null && playerData[key] !== undefined) {
+      formData.append(key, playerData[key]);
+    }
+  });
+
+  return axios.post(API_URL + 'players.php', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 };
 
 export const deletePlayer = (playerId) => {
@@ -62,11 +108,61 @@ export const getClub = (clubId) => {
 };
 
 export const addClub = (clubData) => {
-  return axios.post(API_URL + 'clubs.php', clubData);
+  const formData = new FormData();
+
+  // Add all club fields to FormData
+  Object.keys(clubData).forEach(key => {
+    if (key === 'logo' && clubData[key] instanceof File) {
+      formData.append('logo', clubData[key]);
+      console.log('Appending logo file:', clubData[key].name);
+    } else if (clubData[key] !== null && clubData[key] !== undefined) {
+      formData.append(key, clubData[key]);
+      console.log('Appending field:', key, clubData[key]);
+    }
+  });
+
+  // Log FormData contents (for debugging)
+  console.log('FormData contents:');
+  for (let [key, value] of formData.entries()) {
+    console.log(key, value instanceof File ? `File: ${value.name}` : value);
+  }
+
+  return axios.post(API_URL + 'clubs.php', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 };
 
 export const updateClub = (clubData) => {
-  return axios.put(API_URL + 'clubs.php', clubData);
+  const formData = new FormData();
+
+  // Add action field to FormData
+  formData.append('action', 'update');
+
+  // Add all club fields to FormData
+  Object.keys(clubData).forEach(key => {
+    if (key === 'logo' && clubData[key] instanceof File) {
+      formData.append('logo', clubData[key]);
+      console.log('Appending logo file for update:', clubData[key].name);
+    } else if (clubData[key] !== null && clubData[key] !== undefined) {
+      formData.append(key, clubData[key]);
+      console.log('Appending field for update:', key, clubData[key]);
+    }
+  });
+
+  // Log FormData contents (for debugging)
+  console.log('FormData contents for update:');
+  for (let [key, value] of formData.entries()) {
+    console.log(key, value instanceof File ? `File: ${value.name}` : value);
+  }
+
+  // Use POST with action in FormData
+  return axios.post(API_URL + 'clubs.php', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
 };
 
 export const deleteClub = (clubId) => {
@@ -133,7 +229,7 @@ export const deleteOffer = (offerId) => {
 
 // Notifications APIs
 export const getNotifications = (userId, unreadOnly = false) => {
-  const url = unreadOnly 
+  const url = unreadOnly
     ? `${API_URL}notifications.php?user_id=${userId}&unread=true`
     : `${API_URL}notifications.php?user_id=${userId}`;
   return axios.get(url);
@@ -196,4 +292,28 @@ export const verifyEmail = (token) => {
 // Bulk Delete API
 export const bulkDelete = (table, ids, idColumn) => {
   return axios.post(API_URL + 'bulk_delete.php', { table, ids, id_column: idColumn });
+};
+
+// Transfer Window APIs
+export const getTransferWindows = (status = null) => {
+  const url = status ? `${API_URL}transfer_windows.php?status=${status}` : `${API_URL}transfer_windows.php`;
+  return axios.get(url);
+};
+
+export const getCurrentTransferWindow = () => {
+  return axios.get(API_URL + 'transfer_windows.php?current=true');
+};
+
+export const createTransferWindow = (payload) => {
+  // payload: { start_at: 'YYYY-MM-DD HH:MM:SS', end_at: 'YYYY-MM-DD HH:MM:SS', is_open: 0|1, created_by?: number }
+  return axios.post(API_URL + 'transfer_windows.php', payload);
+};
+
+export const updateTransferWindow = (payload) => {
+  // payload: { id, start_at?, end_at?, is_open? } OR { action:'close_current' }
+  return axios.put(API_URL + 'transfer_windows.php', payload);
+};
+
+export const deleteTransferWindow = (id) => {
+  return axios.delete(API_URL + 'transfer_windows.php', { data: { id } });
 };

@@ -18,6 +18,7 @@ import {
 import CheckCircle from '@mui/icons-material/CheckCircle';
 import Pending from '@mui/icons-material/Pending';
 import DashboardChart from '../components/DashboardChart';
+import { getDashboardStats, getRecentTransfers } from '../services/api';
 
 const AdminDashboardContent = () => {
   const [loading, setLoading] = useState(true);
@@ -25,8 +26,8 @@ const AdminDashboardContent = () => {
   const [stats, setStats] = useState({
     totalPlayers: 0,
     totalClubs: 0,
-    pendingTransfers: 0,
-    completedTransfers: 0
+    activeTransfers: 0,
+    pendingApprovals: 0
   });
   const navigate = useNavigate();
 
@@ -34,35 +35,19 @@ const AdminDashboardContent = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Mock data for recent transfers
-        setRecentTransfers([
-          { 
-            id: 1, 
-            player: 'Player One', 
-            from: 'Team A', 
-            to: 'Team B', 
-            amount: '$5,000,000', 
-            status: 'completed' 
-          },
-          { 
-            id: 2, 
-            player: 'Player Two', 
-            from: 'Team C', 
-            to: 'Team D', 
-            amount: '$3,500,000', 
-            status: 'pending' 
-          }
-        ]);
-        
-        // Mock stats
-        setStats({
-          totalPlayers: 42,
-          totalClubs: 10,
-          pendingTransfers: 5,
-          completedTransfers: 15
-        });
-        
+
+        // Fetch dashboard stats
+        const statsRes = await getDashboardStats();
+        if (statsRes.data.success) {
+          setStats(statsRes.data.data);
+        }
+
+        // Fetch recent transfers
+        const transfersRes = await getRecentTransfers();
+        if (transfersRes.data.success) {
+          setRecentTransfers(transfersRes.data.data);
+        }
+
         setLoading(false);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -72,7 +57,7 @@ const AdminDashboardContent = () => {
 
     fetchData();
   }, []);
-  
+
   let user = {};
   try {
     const userRaw = localStorage.getItem('user');
@@ -116,24 +101,24 @@ const AdminDashboardContent = () => {
       {/* Recent Transfers Table */}
       <Box sx={{ mt: 4 }}>
         <Paper sx={{ p: 3 }}>
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            mb: 3 
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3
           }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
               Recent Transfers
             </Typography>
-            <Button 
-              variant="outlined" 
-              size="small" 
+            <Button
+              variant="outlined"
+              size="small"
               onClick={() => navigate('/transfers')}
             >
               View All
             </Button>
           </Box>
-          
+
           <TableContainer>
             <Table>
               <TableHead>
@@ -168,7 +153,7 @@ const AdminDashboardContent = () => {
                         size="small"
                         color={
                           transfer.status === 'completed' ? 'success' :
-                          transfer.status === 'pending' ? 'warning' : 'info'
+                            transfer.status === 'pending' ? 'warning' : 'info'
                         }
                         icon={transfer.status === 'completed' ? <CheckCircle /> : <Pending />}
                       />
@@ -181,7 +166,7 @@ const AdminDashboardContent = () => {
         </Paper>
       </Box>
     </Box>
-    );
-  };
+  );
+};
 
 export default AdminDashboardContent;

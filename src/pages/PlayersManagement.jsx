@@ -35,6 +35,7 @@ import {
   SportsSoccer as SportsSoccerIcon
 } from '@mui/icons-material';
 import { getPlayers, getClubs, addPlayer, updatePlayer, deletePlayer } from '../services/api';
+import ImageUpload from '../components/ImageUpload';
 
 const PlayersManagement = () => {
   const [players, setPlayers] = useState([]);
@@ -52,6 +53,8 @@ const PlayersManagement = () => {
     contract_end: '',
     health_status: 'fit',
   });
+  const [playerPhoto, setPlayerPhoto] = useState(null);
+  const [playerPhotoPreview, setPlayerPhotoPreview] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(true);
@@ -100,6 +103,7 @@ const PlayersManagement = () => {
         contract_end: player.contract_end || '',
         health_status: player.health_status,
       });
+      setPlayerPhotoPreview(player.photo_url);
     } else {
       setEditMode(false);
       setCurrentPlayer({
@@ -113,6 +117,8 @@ const PlayersManagement = () => {
         contract_end: '',
         health_status: 'fit',
       });
+      setPlayerPhoto(null);
+      setPlayerPhotoPreview(null);
     }
     setOpenDialog(true);
     setError('');
@@ -152,6 +158,10 @@ const PlayersManagement = () => {
         market_value: parseFloat(currentPlayer.market_value) || 0,
         club_id: currentPlayer.club_id || null,
       };
+
+      if (playerPhoto) {
+        playerData.photo = playerPhoto;
+      }
 
       let res;
       if (editMode) {
@@ -210,15 +220,15 @@ const PlayersManagement = () => {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header Section */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         mb: 4,
         flexWrap: 'wrap',
         gap: 2
       }}>
-        <Typography variant="h4" sx={{ 
+        <Typography variant="h4" sx={{
           fontWeight: 600,
           color: 'primary.main',
           fontSize: { xs: '1.5rem', sm: '2rem' }
@@ -246,9 +256,9 @@ const PlayersManagement = () => {
 
       {/* Alerts */}
       {error && (
-        <Alert 
-          severity="error" 
-          sx={{ 
+        <Alert
+          severity="error"
+          sx={{
             mb: 3,
             borderRadius: 2,
             boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
@@ -257,11 +267,11 @@ const PlayersManagement = () => {
           {error}
         </Alert>
       )}
-      
+
       {success && (
-        <Alert 
-          severity="success" 
-          sx={{ 
+        <Alert
+          severity="success"
+          sx={{
             mb: 3,
             borderRadius: 2,
             boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
@@ -272,7 +282,7 @@ const PlayersManagement = () => {
       )}
 
       {/* Players Table */}
-      <Paper 
+      <Paper
         elevation={0}
         sx={{
           borderRadius: 2,
@@ -334,18 +344,18 @@ const PlayersManagement = () => {
                 </TableRow>
               ) : (
                 players.map((player) => (
-                  <TableRow 
-                    key={player.id} 
-                    hover 
-                    sx={{ 
+                  <TableRow
+                    key={player.id}
+                    hover
+                    sx={{
                       '&:last-child td': { borderBottom: 0 },
                       '&:hover': { backgroundColor: 'action.hover' }
                     }}
                   >
                     <TableCell sx={{ fontWeight: 500, py: 1.5, px: 2 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                        <Avatar 
-                          src={player.photo} 
+                        <Avatar
+                          src={player.photo_url}
                           alt={player.name}
                           sx={{ width: 36, height: 36 }}
                         >
@@ -354,9 +364,6 @@ const PlayersManagement = () => {
                         <Box>
                           <Typography variant="body2" fontWeight={500}>
                             {player.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            #{player.jersey_number || '00'}
                           </Typography>
                         </Box>
                       </Box>
@@ -367,8 +374,8 @@ const PlayersManagement = () => {
                     <TableCell sx={{ py: 1.5, px: 2 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {player.nationality_flag && (
-                          <img 
-                            src={player.nationality_flag} 
+                          <img
+                            src={player.nationality_flag}
                             alt={player.nationality}
                             style={{ width: 24, height: 16, borderRadius: 2 }}
                           />
@@ -381,11 +388,11 @@ const PlayersManagement = () => {
                         label={player.position}
                         size="small"
                         color={
-                          player.position === 'Goalkeeper' ? 'primary' : 
-                          player.position === 'Defender' ? 'success' :
-                          player.position === 'Midfielder' ? 'warning' : 'error'
+                          player.position === 'Goalkeeper' ? 'primary' :
+                            player.position === 'Defender' ? 'success' :
+                              player.position === 'Midfielder' ? 'warning' : 'error'
                         }
-                        sx={{ 
+                        sx={{
                           fontWeight: 500,
                           minWidth: 80,
                           '& .MuiChip-label': { px: 1.5 }
@@ -395,8 +402,8 @@ const PlayersManagement = () => {
                     <TableCell sx={{ py: 1.5, px: 2 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {player.club_logo && (
-                          <Avatar 
-                            src={player.club_logo} 
+                          <Avatar
+                            src={player.club_logo}
                             alt={player.club}
                             sx={{ width: 24, height: 24 }}
                           />
@@ -405,27 +412,29 @@ const PlayersManagement = () => {
                       </Box>
                     </TableCell>
                     <TableCell align="right" sx={{ py: 1.5, px: 2, fontWeight: 500 }}>
-                      {player.market_value ? `$${parseInt(player.market_value).toLocaleString()}` : '-'}
+                      {player.market_value && player.market_value !== 'N/A'
+                        ? `$${parseInt(player.market_value.replace(/[$,]/g, '')).toLocaleString()}`
+                        : '-'}
                     </TableCell>
                     <TableCell align="center" sx={{ py: 1.5, px: 2 }}>
                       <Chip
                         label={player.health_status}
                         size="small"
                         color={getHealthStatusColor(player.health_status)}
-                        sx={{ 
+                        sx={{
                           textTransform: 'capitalize',
                           minWidth: 80,
-                          '&.MuiChip-colorSuccess': { 
-                            bgcolor: 'success.light', 
-                            color: 'success.dark' 
+                          '&.MuiChip-colorSuccess': {
+                            bgcolor: 'success.light',
+                            color: 'success.dark'
                           },
-                          '&.MuiChip-colorError': { 
-                            bgcolor: 'error.light', 
-                            color: 'error.dark' 
+                          '&.MuiChip-colorError': {
+                            bgcolor: 'error.light',
+                            color: 'error.dark'
                           },
-                          '&.MuiChip-colorWarning': { 
-                            bgcolor: 'warning.light', 
-                            color: 'warning.dark' 
+                          '&.MuiChip-colorWarning': {
+                            bgcolor: 'warning.light',
+                            color: 'warning.dark'
                           }
                         }}
                       />
@@ -437,8 +446,8 @@ const PlayersManagement = () => {
                             size="small"
                             color="primary"
                             onClick={() => handleOpenDialog(player)}
-                            sx={{ 
-                              '&:hover': { 
+                            sx={{
+                              '&:hover': {
                                 backgroundColor: 'primary.light',
                                 color: 'primary.contrastText'
                               }
@@ -452,8 +461,8 @@ const PlayersManagement = () => {
                             size="small"
                             color="error"
                             onClick={() => handleDelete(player.id)}
-                            sx={{ 
-                              '&:hover': { 
+                            sx={{
+                              '&:hover': {
                                 backgroundColor: 'error.light',
                                 color: 'error.contrastText'
                               }
@@ -473,10 +482,10 @@ const PlayersManagement = () => {
       </Paper>
 
       {/* Add/Edit Dialog */}
-      <Dialog 
-        open={openDialog} 
-        onClose={handleCloseDialog} 
-        maxWidth="sm" 
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
@@ -485,21 +494,23 @@ const PlayersManagement = () => {
           }
         }}
       >
-        <DialogTitle sx={{ 
-          bgcolor: 'primary.main', 
+        <DialogTitle sx={{
+          bgcolor: 'primary.main',
           color: 'primary.contrastText',
           py: 2,
           px: 3,
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12
         }}>
           <Typography variant="h6" component="div">
             {editMode ? 'Edit Player' : 'Add New Player'}
           </Typography>
-          <IconButton 
-            edge="end" 
-            color="inherit" 
+          <IconButton
+            edge="end"
+            color="inherit"
             onClick={handleCloseDialog}
             size="small"
           >
@@ -507,6 +518,18 @@ const PlayersManagement = () => {
           </IconButton>
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+            <ImageUpload
+              currentImage={playerPhotoPreview}
+              onImageChange={(file, preview) => {
+                setPlayerPhoto(file);
+                setPlayerPhotoPreview(preview);
+              }}
+              label="Player Photo"
+              shape="circle"
+              size={120}
+            />
+          </Box>
           <Box sx={{ '& > :not(style)': { my: 1.5 } }}>
             <TextField
               fullWidth
@@ -617,17 +640,17 @@ const PlayersManagement = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
-          <Button 
+          <Button
             onClick={handleCloseDialog}
             color="inherit"
             sx={{ textTransform: 'none' }}
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={handleSubmit}
             variant="contained"
-            sx={{ 
+            sx={{
               textTransform: 'none',
               px: 3,
               '&:hover': {

@@ -12,10 +12,10 @@ const DashboardChart = ({ stats }) => {
       {
         label: 'Dashboard Stats',
         data: [
-          stats.totalClubs || 0,
-          stats.totalPlayers || 0,
-          stats.activeTransfers || 0,
-          stats.pendingApprovals || 0,
+          Number(stats.totalClubs) || 0,
+          Number(stats.totalPlayers) || 0,
+          Number(stats.activeTransfers) || 0,
+          Number(stats.pendingApprovals) || 0,
         ],
         backgroundColor: [
           '#1976d2',

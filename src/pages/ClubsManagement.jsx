@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
   Paper,
   Typography,
   Button,
@@ -29,6 +28,7 @@ import {
   People as PeopleIcon,
   CheckCircle,
   Pending,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { getClubs, addClub, updateClub, deleteClub, approveClub, rejectClub } from '../services/api';
 import { showToast } from '../utils/toast';
@@ -129,16 +129,34 @@ const ClubsManagement = () => {
         return;
       }
 
-      let res;
-      if (editMode) {
-        res = await updateClub(currentClub);
+      // Include logo file if selected
+      const clubData = { ...currentClub };
+      if (clubLogo) {
+        clubData.logo = clubLogo;
+        console.log('Club data with logo:', {
+          logo: clubLogo,
+          logoType: clubLogo.type,
+          logoSize: clubLogo.size
+        });
       } else {
-        res = await addClub(currentClub);
+        console.log('No logo file selected');
       }
 
+      console.log('Submitting club data:', clubData);
+
+      let res;
+      if (editMode) {
+        res = await updateClub(clubData);
+      } else {
+        res = await addClub(clubData);
+      }
+
+      console.log('API response:', res.data);
+
       if (res.data.success) {
-        setSuccess('Club added successfully!');
-        showToast.success('Club added successfully!', {
+        const successMsg = editMode ? 'Club updated successfully!' : 'Club added successfully!';
+        setSuccess(successMsg);
+        showToast.success(successMsg, {
           style: { background: '#43a047', color: '#fff' }
         });
         fetchClubs();
@@ -212,8 +230,8 @@ const ClubsManagement = () => {
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
           Clubs Management
         </Typography>
@@ -224,7 +242,7 @@ const ClubsManagement = () => {
         >
           Add Club
         </Button>
-      </Box>
+      </div>
 
       {error && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess('')}>{success}</Alert>}
@@ -267,12 +285,16 @@ const ClubsManagement = () => {
                     <TableCell>{club.contact}</TableCell>
                     <TableCell>{club.license_no}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={club.status}
-                        size="small"
-                        color={getStatusColor(club.status)}
-                        icon={club.status === 'approved' ? <CheckCircle /> : <Pending />}
-                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {club.status === 'approved' ? (
+                          <CheckCircle color="success" fontSize="small" />
+                        ) : (
+                          <CloseIcon color="error" fontSize="small" />
+                        )}
+                        <Typography variant="body2">
+                          {club.status === 'approved' ? club.name : club.status}
+                        </Typography>
+                      </div>
                     </TableCell>
                     <TableCell>
                       {club.status === 'pending' && (
@@ -324,8 +346,8 @@ const ClubsManagement = () => {
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
-          
-          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
             <ImageUpload
               currentImage={clubLogoPreview}
               onImageChange={(file, preview) => {
@@ -336,7 +358,7 @@ const ClubsManagement = () => {
               shape="square"
               size={150}
             />
-          </Box>
+          </div>
 
           <TextField
             fullWidth
@@ -401,7 +423,7 @@ const ClubsManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 };
 

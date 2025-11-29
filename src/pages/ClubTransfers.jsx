@@ -15,15 +15,27 @@ import {
   Tab,
   Card,
   CardContent,
-  Grid
+  Grid,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select,
+  InputAdornment
 } from '@mui/material';
 import {
   SwapHoriz as TransferIcon,
   TrendingUp as UpIcon,
   TrendingDown as DownIcon,
-  AttachMoney as MoneyIcon
+  AttachMoney as MoneyIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
-import { getTransfers, getClubs } from '../services/api';
+import { getTransfers, getClubs, getPlayers, addTransfer } from '../services/api';
 
 const ClubTransfers = () => {
   const [transfers, setTransfers] = useState([]);
@@ -31,6 +43,17 @@ const ClubTransfers = () => {
   const [tabValue, setTabValue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Dialog states
+  const [openDialog, setOpenDialog] = useState(false);
+  const [availablePlayers, setAvailablePlayers] = useState([]);
+  const [transferRequest, setTransferRequest] = useState({
+    player_id: '',
+    type: 'Permanent',
+    amount: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [dialogError, setDialogError] = useState('');
 
   const user = JSON.parse(localStorage.getItem('user'));
 
@@ -67,7 +90,76 @@ const ClubTransfers = () => {
     }
   };
 
+  const handleOpenDialog = async () => {
+    setOpenDialog(true);
+    setDialogError('');
+    try {
+      const res = await getPlayers();
+      if (res.data.success) {
+        // Filter players not in my club
+        const others = res.data.data.filter(p => p.club_id != clubInfo.id);
+        setAvailablePlayers(others);
+      }
+    } catch (err) {
+      console.error('Error fetching players:', err);
+      setDialogError('Failed to load players list');
+    }
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setTransferRequest({ player_id: '', type: 'Permanent', amount: '' });
+  };
+
+  const handleSubmitTransfer = async () => {
+    if (!transferRequest.player_id || !transferRequest.amount) {
+      setDialogError('Please fill in all required fields');
+      return;
+    }
+
+    setSubmitting(true);
+    setDialogError('');
+
+    try {
+      const payload = {
+        player_id: transferRequest.player_id,
+        buyer_club_id: clubInfo.id,
+        type: transferRequest.type,
+        amount: parseFloat(transferRequest.amount),
+        status: 'pending'
+      };
+
+      const res = await addTransfer(payload);
+      if (res.data.success) {
+        handleCloseDialog();
+        fetchData(); // Refresh list
+      } else {
+        setDialogError(res.data.message || 'Failed to create transfer request');
+      }
+    } catch (err) {
+      setDialogError(err.response?.data?.message || 'Error creating transfer request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const parseMarketValue = (value) => {
+    if (!value) return 0;
+    const strVal = value.toString().replace(/[$,]/g, '');
+
+    if (strVal.toUpperCase().includes('M')) {
+      return parseFloat(strVal.replace(/M/i, '')) * 1000000;
+    }
+    if (strVal.toUpperCase().includes('K')) {
+      return parseFloat(strVal.replace(/K/i, '')) * 1000;
+    }
+    return parseFloat(strVal) || 0;
+  };
+
   const formatCurrency = (amount) => {
+    if (amount >= 1000000) {
+      return `$${(amount / 1000000).toFixed(1)}M`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
@@ -88,7 +180,7 @@ const ClubTransfers = () => {
 
   const getFilteredTransfers = () => {
     if (!clubInfo) return [];
-    
+
     switch (tabValue) {
       case 0: // All
         return transfers;
@@ -106,14 +198,14 @@ const ClubTransfers = () => {
 
     const incoming = transfers.filter(t => t.buyer_club_id == clubInfo.id);
     const outgoing = transfers.filter(t => t.seller_club_id == clubInfo.id);
-    
+
     const totalSpent = incoming
       .filter(t => t.status === 'completed')
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-    
+      .reduce((sum, t) => sum + parseMarketValue(t.amount_raw || t.amount), 0);
+
     const totalEarned = outgoing
       .filter(t => t.status === 'completed')
-      .reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+      .reduce((sum, t) => sum + parseMarketValue(t.amount_raw || t.amount), 0);
 
     return {
       incoming: incoming.length,
@@ -136,10 +228,19 @@ const ClubTransfers = () => {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        <TransferIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
-        Transfer Activity - {clubInfo.club_name}
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          <TransferIcon sx={{ verticalAlign: 'middle', mr: 1 }} />
+          Transfer Activity - {clubInfo.club_name}
+        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleOpenDialog}
+        >
+          Request Transfer
+        </Button>
+      </Box>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
@@ -248,7 +349,7 @@ const ClubTransfers = () => {
             ) : (
               filteredTransfers.map((transfer) => {
                 const isIncoming = transfer.buyer_club_id == clubInfo.id;
-                
+
                 return (
                   <TableRow key={transfer.transfer_id} hover>
                     <TableCell>
@@ -269,12 +370,12 @@ const ClubTransfers = () => {
                     <TableCell>{transfer.seller_club || 'N/A'}</TableCell>
                     <TableCell>{transfer.buyer_club || 'TBD'}</TableCell>
                     <TableCell>
-                      <Typography 
-                        variant="body2" 
+                      <Typography
+                        variant="body2"
                         fontWeight="bold"
                         color={isIncoming ? 'error.main' : 'success.main'}
                       >
-                        {isIncoming ? '-' : '+'}{formatCurrency(transfer.amount || 0)}
+                        {isIncoming ? '-' : '+'}{formatCurrency(parseMarketValue(transfer.amount_raw || transfer.amount))}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -292,6 +393,66 @@ const ClubTransfers = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Request Transfer Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Request Transfer</DialogTitle>
+        <DialogContent>
+          {dialogError && <Alert severity="error" sx={{ mb: 2, mt: 1 }}>{dialogError}</Alert>}
+
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Select Player</InputLabel>
+              <Select
+                value={transferRequest.player_id}
+                label="Select Player"
+                onChange={(e) => setTransferRequest({ ...transferRequest, player_id: e.target.value })}
+              >
+                {availablePlayers.map((player) => (
+                  <MenuItem key={player.player_id} value={player.player_id}>
+                    {player.name} ({player.club_name}) - {formatCurrency(parseMarketValue(player.market_value))}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            <FormControl fullWidth>
+              <InputLabel>Transfer Type</InputLabel>
+              <Select
+                value={transferRequest.type}
+                label="Transfer Type"
+                onChange={(e) => setTransferRequest({ ...transferRequest, type: e.target.value })}
+              >
+                <MenuItem value="Permanent">Permanent Transfer</MenuItem>
+                <MenuItem value="Loan">Loan</MenuItem>
+                <MenuItem value="Free">Free Transfer</MenuItem>
+              </Select>
+            </FormControl>
+
+            <TextField
+              label="Offer Amount"
+              type="number"
+              fullWidth
+              value={transferRequest.amount}
+              onChange={(e) => setTransferRequest({ ...transferRequest, amount: e.target.value })}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+              disabled={transferRequest.type === 'Free'}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancel</Button>
+          <Button
+            onClick={handleSubmitTransfer}
+            variant="contained"
+            disabled={submitting}
+          >
+            {submitting ? 'Submitting...' : 'Submit Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

@@ -1,7 +1,7 @@
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json");
 
 // Handle OPTIONS request for CORS preflight
@@ -11,6 +11,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 include 'config.php';
+
+// Transfer window helpers
+function tw_ensure($conn) {
+    $check = $conn->query("SHOW TABLES LIKE 'transfer_windows'");
+    if (!$check || $check->num_rows === 0) {
+        $conn->query("CREATE TABLE IF NOT EXISTS transfer_windows (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, start_at DATETIME NOT NULL, end_at DATETIME NOT NULL, is_open TINYINT(1) DEFAULT 0, created_by INT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    }
+}
+
+function tw_is_open($conn) {
+    tw_ensure($conn);
+    $sql = "SELECT id FROM transfer_windows WHERE is_open = 1 AND start_at <= NOW() AND end_at >= NOW() LIMIT 1";
+    $res = $conn->query($sql);
+    return ($res && $res->num_rows > 0);
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -113,6 +128,12 @@ if ($method === 'GET') {
 // POST - Create new offer
 elseif ($method === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
+
+    // Enforce transfer window open
+    if (!tw_is_open($conn)) {
+        echo json_encode(["success" => false, "message" => "Transfer window is closed. Offers cannot be created now."]);
+        exit;
+    }
     
     $transfer_id = intval($data['transfer_id'] ?? 0);
     $buyer_club_id = intval($data['buyer_club_id'] ?? 0);
@@ -195,6 +216,11 @@ elseif ($method === 'PUT') {
         exit;
     }
     
+    if (($action === 'accept' || $action === 'counter') && !tw_is_open($conn)) {
+        echo json_encode(["success" => false, "message" => "Transfer window is closed. Action not allowed."]);
+        exit;
+    }
+
     if ($action === 'accept') {
         // Accept offer
         $stmt = $conn->prepare("UPDATE offers SET status = 'accepted' WHERE offer_id = ?");

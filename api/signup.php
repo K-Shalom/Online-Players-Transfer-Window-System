@@ -51,9 +51,10 @@ if ($hasEmailVerification) {
     $verification_token = bin2hex(random_bytes(32));
     $token_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
     $email_verified = 0; // Not verified by default
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     
     $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, status, email_verified, verification_token, token_expiry) VALUES (?,?,?,?,?,?,?,?)");
-    $stmt->bind_param("ssssiiss", $name, $email, $password, $role, $status, $email_verified, $verification_token, $token_expiry);
+    $stmt->bind_param("ssssiiss", $name, $email, $hashedPassword, $role, $status, $email_verified, $verification_token, $token_expiry);
     
     if ($stmt->execute()) {
         $user_id = $conn->insert_id;
@@ -70,8 +71,9 @@ if ($hasEmailVerification) {
     }
 } else {
     // Email verification is NOT enabled - use simple insert
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
     $stmt = $conn->prepare("INSERT INTO users (name, email, password, role, status) VALUES (?,?,?,?,?)");
-    $stmt->bind_param("sssss", $name, $email, $password, $role, $status);
+    $stmt->bind_param("sssss", $name, $email, $hashedPassword, $role, $status);
     
     if ($stmt->execute()) {
         echo json_encode([

@@ -1,15 +1,70 @@
 <?php
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json");
+
+// Handle OPTIONS request for CORS preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 include 'config.php';
 
+$tw_helpers_defined = true;
+if (!function_exists('tw_ensure')) {
+    function tw_ensure($conn) {
+        $check = $conn->query("SHOW TABLES LIKE 'transfer_windows'");
+        if (!$check || $check->num_rows === 0) {
+            $conn->query("CREATE TABLE IF NOT EXISTS transfer_windows (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, start_at DATETIME NOT NULL, end_at DATETIME NOT NULL, is_open TINYINT(1) DEFAULT 0, created_by INT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+        }
+    }
+}
+
+if (!function_exists('tw_is_open')) {
+    function tw_is_open($conn) {
+        tw_ensure($conn);
+        $sql = "SELECT id FROM transfer_windows WHERE is_open = 1 AND start_at <= NOW() AND end_at >= NOW() LIMIT 1";
+        $res = $conn->query($sql);
+        return ($res && $res->num_rows > 0);
+    }
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
+
+// Get current user from Authorization header or session
+function getCurrentUser() {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    
+    // For now, get user_id from Authorization header (Bearer token)
+    if ($authHeader && strpos($authHeader, 'Bearer ') === 0) {
+        $token = substr($authHeader, 7);
+        // In a real app, validate JWT token here
+        // For now, assume token contains user_id
+        $parts = explode(':', $token);
+        return ['user_id' => intval($parts[0] ?? 0), 'role' => $parts[1] ?? 'user'];
+    }
+    
+    // Fallback to session if available
+    session_start();
+    if (isset($_SESSION['user_id'])) {
+        return ['user_id' => $_SESSION['user_id'], 'role' => $_SESSION['role'] ?? 'user'];
+    }
+    
+    return null;
+}
 
 // GET - Fetch all transfers or single transfer
 if ($method === 'GET') {
+    $currentUser = getCurrentUser();
+    
+    if (!$currentUser) {
+        echo json_encode(["success" => false, "message" => "Authentication required"]);
+        exit;
+    }
+    
     $transferId = $_GET['id'] ?? null;
     
     if ($transferId) {
@@ -74,17 +129,52 @@ if ($method === 'GET') {
 // POST - Create new transfer
 if ($method === 'POST') {
     $data = json_decode(file_get_contents("php://input"), true);
+    if (!tw_is_open($conn)) {
+        echo json_encode(["success" => false, "message" => "Transfer window is closed. Transfers cannot be created now."]);
+        exit;
+    }
     
     $playerId = $data['player_id'] ?? null;
-    $sellerClubId = $data['seller_club_id'] ?? null;
     $buyerClubId = $data['buyer_club_id'] ?? null;
     $type = $data['type'] ?? 'Permanent';
-    $amount = $data['amount'] ?? 0;
+    $amount = isset($data['amount']) ? floatval($data['amount']) : 0;
     $status = $data['status'] ?? 'pending';
     
-    if (!$playerId || !$sellerClubId || !$buyerClubId) {
-        echo json_encode(["success" => false, "message" => "Player, seller club, and buyer club are required"]);
+    if (!$playerId || !$buyerClubId) {
+        echo json_encode(["success" => false, "message" => "Player and buyer club are required"]);
         exit;
+    }
+
+    // Fetch player club to prevent tampering and enforce rules
+    $playerStmt = $conn->prepare("SELECT club_id FROM players WHERE player_id = ?");
+    $playerStmt->bind_param("i", $playerId);
+    $playerStmt->execute();
+    $playerResult = $playerStmt->get_result();
+    $playerData = $playerResult->fetch_assoc();
+    if (!$playerData) {
+        echo json_encode(["success" => false, "message" => "Player not found"]);
+        exit;
+    }
+
+    $sellerClubId = $playerData['club_id'] !== null ? intval($playerData['club_id']) : null;
+
+    if ($sellerClubId !== null && $sellerClubId == $buyerClubId) {
+        echo json_encode(["success" => false, "message" => "Player cannot transfer to the same club"]);
+        exit;
+    }
+
+    if ($type === 'Permanent') {
+        if ($amount <= 0) {
+            echo json_encode(["success" => false, "message" => "Amount is required for permanent transfers"]);
+            exit;
+        }
+    } else {
+        // For loan or free transfers, amount is optional. Force 0 for free transfers.
+        if ($type === 'Free') {
+            $amount = 0;
+        } elseif ($amount < 0) {
+            $amount = 0;
+        }
     }
     
     $stmt = $conn->prepare("INSERT INTO transfers (player_id, seller_club_id, buyer_club_id, type, amount, status) 
@@ -116,6 +206,10 @@ if ($method === 'PUT') {
     }
     
     if ($status) {
+        if (in_array($status, ['accepted','completed']) && !tw_is_open($conn)) {
+            echo json_encode(["success" => false, "message" => "Transfer window is closed. Status update not allowed."]);
+            exit;
+        }
         $stmt = $conn->prepare("UPDATE transfers SET status=? WHERE transfer_id=?");
         $stmt->bind_param("si", $status, $transferId);
     } elseif ($amount !== null) {

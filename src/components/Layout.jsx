@@ -30,6 +30,7 @@ import {
   AccountCircle,
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
+  Storefront as MarketIcon,
 } from '@mui/icons-material';
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -44,7 +45,9 @@ const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
-  const { mode, toggleTheme } = useContext(ThemeContext);
+  const themeCtx = useContext(ThemeContext);
+  const mode = themeCtx?.mode ?? 'light';
+  const toggleTheme = themeCtx?.toggleTheme ?? (() => { });
 
   // Check user session
   useEffect(() => {
@@ -72,24 +75,27 @@ const Layout = ({ children }) => {
   if (!user) return <Box sx={{ display: "flex" }}>{children}</Box>;
 
   // Menu definitions
+  // Menu definitions
   const adminMenu = [
-    { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
-    { text: "Clubs", icon: <PeopleIcon />, path: "/clubs" },
-    { text: "Players", icon: <SoccerIcon />, path: "/players" },
-    { text: "Transfers", icon: <TransferIcon />, path: "/transfers" },
-    { text: "Offers", icon: <NotificationIcon />, path: "/offers" },
-    { text: "Wishlist", icon: <AccountCircle />, path: "/wishlist" },
-    { text: "Reports", icon: <ReportIcon />, path: "/reports" },
-    { text: "Settings", icon: <SettingsIcon />, path: "/settings" },
+    { text: "Dashboard", icon: <DashboardIcon />, path: "/admin" },
+    { text: "Clubs", icon: <PeopleIcon />, path: "/admin/clubs" },
+    { text: "Players", icon: <SoccerIcon />, path: "/admin/players" },
+    { text: "Player Market", icon: <MarketIcon />, path: "/admin/market" },
+    { text: "Transfers", icon: <TransferIcon />, path: "/admin/transfers" },
+    { text: "Offers", icon: <NotificationIcon />, path: "/admin/offers" },
+    { text: "Wishlist", icon: <AccountCircle />, path: "/admin/wishlist" },
+    { text: "Reports", icon: <ReportIcon />, path: "/admin/reports" },
+    { text: "Settings", icon: <SettingsIcon />, path: "/admin/settings" },
   ];
 
   const clubMenu = [
-    { text: "Dashboard", icon: <DashboardIcon />, path: "/dashboard" },
-    { text: "My Squad", icon: <SoccerIcon />, path: "/my-players" },
-    { text: "Transfers", icon: <TransferIcon />, path: "/my-transfers" },
-    { text: "My Offers", icon: <NotificationIcon />, path: "/my-offers" },
-    { text: "Wishlist", icon: <AccountCircle />, path: "/my-wishlist" },
-    { text: "Settings", icon: <SettingsIcon />, path: "/settings" },
+    { text: "Dashboard", icon: <DashboardIcon />, path: "/club" },
+    { text: "My Squad", icon: <SoccerIcon />, path: "/club/players" },
+    { text: "Player Market", icon: <MarketIcon />, path: "/club/market" },
+    { text: "Transfers", icon: <TransferIcon />, path: "/club/transfers" },
+    { text: "My Offers", icon: <NotificationIcon />, path: "/club/offers" },
+    { text: "Wishlist", icon: <AccountCircle />, path: "/club/wishlist" },
+    { text: "Settings", icon: <SettingsIcon />, path: "/club/setup" },
   ];
 
   const menuItems = user.role === "admin" ? adminMenu : clubMenu;

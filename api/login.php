@@ -58,9 +58,20 @@ if ($hasEmailVerification && isset($row['email_verified']) && $row['email_verifi
     exit;
 }
 
-// Check password (plain text comparison for now - matching your SQL data)
-// Note: In production, passwords should be hashed using password_hash()
-if ($password === $row['password']) {
+// Verify password (hashed preferred, fallback to plaintext, auto-upgrade to hash)
+$isValid = false;
+if (password_verify($password, $row['password'])) {
+    $isValid = true;
+} elseif ($password === $row['password']) {
+    $isValid = true;
+    // Upgrade plaintext password to hashed for future logins
+    $newHash = password_hash($password, PASSWORD_DEFAULT);
+    $up = $conn->prepare("UPDATE users SET password=? WHERE user_id=?");
+    $up->bind_param("si", $newHash, $row['user_id']);
+    $up->execute();
+}
+
+if ($isValid) {
     echo json_encode([
         "success"=>true,
         "user_id"=>$row['user_id'],
